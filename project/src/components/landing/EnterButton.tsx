@@ -26,7 +26,7 @@ export default function EnterButton({ onEnter }: EnterButtonProps) {
       />
 
       <motion.button
-        className="btn-jade w-[240px] h-14 text-base animate-jade-breathe"
+        className="btn-primary w-[240px] h-14 text-base animate-jade-breathe"
         onClick={onEnter}
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}

@@ -110,17 +110,21 @@ describe('聊天流程集成', () => {
       economy: state.economy,
       chatHistory: state.chatHistory,
       meta: state.meta,
+      fuel: state.fuel,
+      penguin: state.penguin,
+      ending: state.ending,
+      spark: state.spark,
     };
     const prompt = buildSystemPrompt(gameState);
 
     // system prompt 包含角色基础设定
-    expect(prompt).toContain('烬渊');
-    expect(prompt).toContain('谱渊');
+    expect(prompt).toContain('诗人');
+    expect(prompt).toContain('异质世界');
     // 包含用户信息
     expect(prompt).toContain('测试用户');
     expect(prompt).toContain('翡翠绿');
     // 包含当前阶段指令
-    expect(prompt).toContain('初遇');
+    expect(prompt).toContain('雾中轮廓');
   });
 
   it('Prompt 引擎随阶段变化更新指令', () => {
@@ -135,6 +139,10 @@ describe('聊天流程集成', () => {
       economy: state.economy,
       chatHistory: state.chatHistory,
       meta: state.meta,
+      fuel: state.fuel,
+      penguin: state.penguin,
+      ending: state.ending,
+      spark: state.spark,
     };
     const prompt = buildSystemPrompt(gameState);
 
@@ -157,6 +165,10 @@ describe('聊天流程集成', () => {
       economy: state.economy,
       chatHistory: state.chatHistory,
       meta: state.meta,
+      fuel: state.fuel,
+      penguin: state.penguin,
+      ending: state.ending,
+      spark: state.spark,
     };
     const systemPrompt = buildSystemPrompt(gameState);
     const messages = buildMessages(state.chatHistory, systemPrompt);
@@ -169,7 +181,7 @@ describe('聊天流程集成', () => {
   it('事件触发后 prompt 包含事件指令', () => {
     const store = useGameStore.getState();
     store.setUserName('用户');
-    store.triggerEvent('event-a-first-resonance');
+    store.triggerEvent('event-20-first-crack');
     store.updateFamiliarityValue(25);
 
     const state = useGameStore.getState();
@@ -179,9 +191,13 @@ describe('聊天流程集成', () => {
       economy: state.economy,
       chatHistory: state.chatHistory,
       meta: state.meta,
+      fuel: state.fuel,
+      penguin: state.penguin,
+      ending: state.ending,
+      spark: state.spark,
     };
     const prompt = buildSystemPrompt(gameState);
 
-    expect(prompt).toContain('第一次共振');
+    expect(prompt).toContain('第一道裂缝已触发');
   });
 });

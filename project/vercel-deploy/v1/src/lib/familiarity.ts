@@ -1,6 +1,7 @@
-/** 熟悉度计算模块 — 处理对话字数、金币兑换、阈值检测 */
+/** 熟悉度计算模块 — 处理对话字数、阈值检测、燃料过渡判定 */
 
 import type { FamiliarityPhase } from '@/types/character';
+import { FUEL_CONSTANTS } from '@/types/fuel';
 
 /** 熟悉度阈值列表 */
 const THRESHOLDS = [20, 50, 80, 100] as const;
@@ -53,21 +54,39 @@ export function calculateFamiliarityFromWords(wordCount: number): number {
 }
 
 /**
- * 根据金币数量计算熟悉度增量
- * 规则：每 100 金币 → +10%
+ * 更新熟悉度值，确保不超过上限 100
+ * 如果处于预览期（80%-100%）且回应了火种，额外加成 +2%
  */
-export function calculateFamiliarityFromGold(goldAmount: number): number {
-  if (goldAmount <= 0) return 0;
-  return (goldAmount / 100) * 10;
+export function updateFamiliarity(
+  current: number,
+  delta: number,
+  respondedToSpark?: boolean
+): number {
+  if (delta < 0) return current;
+  let result = current + delta;
+
+  // 预览期火种回应加成
+  if (respondedToSpark && isInPreviewSparkPhase(current)) {
+    result += FUEL_CONSTANTS.PREVIEW.SPARK_FAMILIARITY_BONUS;
+  }
+
+  return Math.min(result, 100);
 }
 
 /**
- * 更新熟悉度值，确保不超过上限 100
+ * 检查是否到达 80% 阈值，需要将熟悉度条转换为航程燃料条
+ * 80% 是整个体验的转折核心
  */
-export function updateFamiliarity(current: number, delta: number): number {
-  if (delta < 0) return current;
-  const result = current + delta;
-  return Math.min(result, 100);
+export function checkFuelTransition(familiarity: number): boolean {
+  return familiarity >= 80;
+}
+
+/**
+ * 检查是否处于 80%-100% 的火种预览期
+ * 在此期间，每15轮出现1次预览火种，忽略不惩罚，回应额外+2%熟悉度
+ */
+export function isInPreviewSparkPhase(familiarity: number): boolean {
+  return familiarity >= 80 && familiarity < 100;
 }
 
 /**

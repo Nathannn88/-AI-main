@@ -5,7 +5,7 @@ import type { GameState } from '@/types/game-state';
 import { createDefaultGameState, GAME_STATE_VERSION } from '@/types/game-state';
 import type { ChatMessage } from '@/types/chat';
 import type { FamiliarityPhase } from '@/types/character';
-import { countChineseWords, calculateFamiliarityFromWords, calculateFamiliarityFromGold, updateFamiliarity, getFamiliarityPhase } from '@/lib/familiarity';
+import { countChineseWords, calculateFamiliarityFromWords, updateFamiliarity, getFamiliarityPhase } from '@/lib/familiarity';
 import { recharge as goldRecharge, sendGift as goldSendGift } from '@/lib/gold-system';
 import { exportGameState, importGameState } from '@/lib/save-system';
 import { checkEventTrigger } from '@/lib/event-system';
@@ -139,34 +139,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return { success: false, error: result.error };
     }
 
-    // 送礼成功，增加熟悉度
-    const familiarityDelta = calculateFamiliarityFromGold(amount);
-    const newFamiliarity = updateFamiliarity(state.character.familiarity, familiarityDelta);
-    const newPhase = getFamiliarityPhase(newFamiliarity);
+    // 送礼成功，仅扣除金币（金币不影响熟悉度，熟悉度完全基于对话）
     const now = new Date().toISOString();
-
-    // 检测事件触发
-    const eventTrigger = checkEventTrigger(
-      state.character.familiarity,
-      newFamiliarity,
-      state.character.eventsTriggered
-    );
-
-    const newEventsTriggered = eventTrigger
-      ? [...state.character.eventsTriggered, eventTrigger.eventId]
-      : state.character.eventsTriggered;
 
     set({
       economy: {
         ...state.economy,
         goldBalance: result.newBalance,
         totalGoldSpent: state.economy.totalGoldSpent + amount,
-      },
-      character: {
-        ...state.character,
-        familiarity: newFamiliarity,
-        currentPhase: newPhase,
-        eventsTriggered: newEventsTriggered,
       },
       meta: {
         ...state.meta,
@@ -182,11 +162,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newFamiliarity = updateFamiliarity(state.character.familiarity, delta);
     const newPhase = getFamiliarityPhase(newFamiliarity);
 
+    // 检测事件触发
+    const eventTrigger = checkEventTrigger(
+      state.character.familiarity,
+      newFamiliarity,
+      state.character.eventsTriggered
+    );
+
+    const newEventsTriggered = eventTrigger
+      ? [...state.character.eventsTriggered, eventTrigger.eventId]
+      : state.character.eventsTriggered;
+
     set({
       character: {
         ...state.character,
         familiarity: newFamiliarity,
         currentPhase: newPhase,
+        eventsTriggered: newEventsTriggered,
       },
     });
   },
@@ -211,6 +203,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       economy: state.economy,
       chatHistory: state.chatHistory,
       meta: state.meta,
+      fuel: state.fuel,
+      penguin: state.penguin,
+      ending: state.ending,
+      spark: state.spark,
     };
     return exportGameState(gameState);
   },
@@ -227,6 +223,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       economy: result.state.economy,
       chatHistory: result.state.chatHistory,
       meta: result.state.meta,
+      fuel: result.state.fuel,
+      penguin: result.state.penguin,
+      ending: result.state.ending,
+      spark: result.state.spark,
     });
 
     return { success: true };

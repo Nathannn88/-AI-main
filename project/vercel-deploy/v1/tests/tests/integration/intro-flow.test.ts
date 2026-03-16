@@ -66,6 +66,10 @@ describe('自我介绍流程集成', () => {
       economy: state.economy,
       chatHistory: state.chatHistory,
       meta: state.meta,
+      fuel: state.fuel,
+      penguin: state.penguin,
+      ending: state.ending,
+      spark: state.spark,
     };
     const prompt = buildSystemPrompt(gameState);
 

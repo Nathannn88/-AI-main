@@ -52,7 +52,7 @@ describe('充值流程集成', () => {
     expect(after.economy.rechargeHistory[0].timestamp).toMatch(/^\d{4}-\d{2}-\d{2}/);
   });
 
-  it('充值后可以送礼', () => {
+  it('充值后可以送礼（金币不影响熟悉度）', () => {
     const store = useGameStore.getState();
     store.addGold(328);
 
@@ -61,23 +61,26 @@ describe('充值流程集成', () => {
 
     const after = useGameStore.getState();
     expect(after.economy.goldBalance).toBe(128);
-    expect(after.character.familiarity).toBe(20);
+    // 金币不影响熟悉度
+    expect(after.character.familiarity).toBe(0);
   });
 
-  it('充值→送礼→再充值→再送礼 完整链路', () => {
+  it('充值→送礼→再充值→再送礼 完整链路（金币不影响熟悉度）', () => {
     const store = useGameStore.getState();
 
     // 第一轮
     store.addGold(100);
     store.sendGift(100);
     expect(useGameStore.getState().economy.goldBalance).toBe(0);
-    expect(useGameStore.getState().character.familiarity).toBe(10);
+    // 金币不影响熟悉度
+    expect(useGameStore.getState().character.familiarity).toBe(0);
 
     // 第二轮
     useGameStore.getState().addGold(200);
     useGameStore.getState().sendGift(100);
     expect(useGameStore.getState().economy.goldBalance).toBe(100);
-    expect(useGameStore.getState().character.familiarity).toBe(20);
+    // 熟悉度仍然为 0
+    expect(useGameStore.getState().character.familiarity).toBe(0);
 
     // 统计
     expect(useGameStore.getState().economy.totalGoldEarned).toBe(300);

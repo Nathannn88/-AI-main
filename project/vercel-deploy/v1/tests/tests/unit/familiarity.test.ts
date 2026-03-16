@@ -4,10 +4,11 @@ import { describe, it, expect } from 'vitest';
 import {
   countChineseWords,
   calculateFamiliarityFromWords,
-  calculateFamiliarityFromGold,
   updateFamiliarity,
   getFamiliarityPhase,
   checkThresholdCrossing,
+  checkFuelTransition,
+  isInPreviewSparkPhase,
 } from '@/lib/familiarity';
 
 describe('countChineseWords - 中文字数统计', () => {
@@ -67,25 +68,35 @@ describe('calculateFamiliarityFromWords - 字数→熟悉度增量', () => {
   });
 });
 
-describe('calculateFamiliarityFromGold - 金币→熟悉度增量', () => {
-  it('100 金币增加 10%', () => {
-    expect(calculateFamiliarityFromGold(100)).toBeCloseTo(10);
+describe('checkFuelTransition - 燃料过渡判定', () => {
+  it('80% 以上返回 true', () => {
+    expect(checkFuelTransition(80)).toBe(true);
   });
 
-  it('648 金币增加 64.8%', () => {
-    expect(calculateFamiliarityFromGold(648)).toBeCloseTo(64.8);
+  it('79% 返回 false', () => {
+    expect(checkFuelTransition(79)).toBe(false);
   });
 
-  it('50 金币增加 5%', () => {
-    expect(calculateFamiliarityFromGold(50)).toBeCloseTo(5);
+  it('100% 返回 true', () => {
+    expect(checkFuelTransition(100)).toBe(true);
+  });
+});
+
+describe('isInPreviewSparkPhase - 火种预览期判定', () => {
+  it('80% 是预览期', () => {
+    expect(isInPreviewSparkPhase(80)).toBe(true);
   });
 
-  it('0 金币返回 0', () => {
-    expect(calculateFamiliarityFromGold(0)).toBe(0);
+  it('90% 是预览期', () => {
+    expect(isInPreviewSparkPhase(90)).toBe(true);
   });
 
-  it('负数返回 0', () => {
-    expect(calculateFamiliarityFromGold(-50)).toBe(0);
+  it('100% 不是预览期', () => {
+    expect(isInPreviewSparkPhase(100)).toBe(false);
+  });
+
+  it('79% 不是预览期', () => {
+    expect(isInPreviewSparkPhase(79)).toBe(false);
   });
 });
 

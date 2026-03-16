@@ -1,160 +1,468 @@
-/** 事件系统 — 熟悉度阈值事件定义与触发检测 */
+/** 事件系统 — 熟悉度阈值事件定义、触发检测与视觉效果配置 */
 
-/** 事件定义 */
-export interface EventDefinition {
-  id: string;
-  threshold: number;
-  title: string;
+// ============================================================
+// 类型定义
+// ============================================================
+
+/** 事件阈值：20% / 50% / 80% / 100% */
+export type EventThreshold = 20 | 50 | 80 | 100;
+
+/** 视觉效果描述 */
+export interface VisualEffect {
+  /** 效果类型标识 */
+  type: string;
+  /** 持续时长（秒） */
+  duration: number;
+  /** 效果描述（前端实现参考） */
   description: string;
-}
-
-/** 事件触发信息 */
-export interface EventTrigger {
-  eventId: string;
-  threshold: number;
-  title: string;
 }
 
 /** 事件内容 */
 export interface EventContent {
+  /** 事件唯一标识 */
   id: string;
+  /** 事件标题 */
   title: string;
+  /** 事件描述（用于 UI 展示） */
   description: string;
+  /** 情绪基调 */
+  mood: string;
+  /** 诗人台词列表（按顺序展示） */
+  dialogueLines: string[];
+  /** 兼容旧版——dialogue 等同于 dialogueLines */
   dialogue: string[];
+  /** 视觉效果列表 */
+  visualEffects: VisualEffect[];
+  /** 揭示的信息 */
+  reveals: string[];
 }
 
-/** 四个关键事件定义 */
-export const EVENTS: EventDefinition[] = [
-  {
-    id: 'event-a-first-resonance',
-    threshold: 20,
-    title: '第一次共振',
-    description: '栖迟第一次感知到与你频率共振的瞬间，从"观察者"转变为"想要被理解"的存在。',
-  },
-  {
-    id: 'event-b-rift',
-    threshold: 50,
-    title: '裂痕',
-    description: '栖迟主动揭露谱渊的真相——共振衰减、他的使命，以及手腕上谱弦的秘密。',
-  },
-  {
-    id: 'event-c-irreversible',
-    threshold: 80,
-    title: '不可撤回',
-    description: '栖迟放下所有谱渊框架，用人类的方式坦白：他害怕消散后你们之间的共振会被遗忘。',
-  },
-  {
-    id: 'event-d-interval',
-    threshold: 100,
-    title: '间隙',
-    description: '谱弦饱和，回传协议启动。栖迟用最后的频率与你告别——"在间隙中相遇。"',
-  },
+/** 事件 UI 效果配置 */
+export interface EventEffects {
+  /** 屏幕色调变化 */
+  screenTint: string;
+  /** 企鹅动画变化 */
+  penguinAnimation: string;
+  /** 背景音效提示 */
+  ambientSound: string;
+  /** 过渡动画时长（秒） */
+  transitionDuration: number;
+  /** 后续持久效果（事件结束后保留的视觉变化） */
+  persistentEffects: string[];
+}
+
+/** 事件触发结果 */
+export interface EventTriggerResult {
+  /** 事件标识 */
+  eventId: string;
+  /** 触发阈值 */
+  threshold: EventThreshold;
+  /** 事件标题 */
+  title: string;
+}
+
+// ============================================================
+// 事件内容定义 — 基于项目圣经第五章
+// ============================================================
+
+/** 20% 事件台词 */
+const EVENT_20_LINES = [
+  '等一下。',
+  '你有没有闻到过一种气味——不是记忆里的——而是你从来没去过的地方传来的？',
+  '像雨落在从没见过的金属上。',
+  '……抱歉。这里偶尔会有信号漂进来。',
+  '你家窗户偶尔会飘进来邻居炒菜的味道对吧。差不多是那个意思。只是我的"邻居"比较远。',
+  '远到——算了。',
 ];
 
-/** 事件详细内容（包含对话文本） */
-const EVENT_CONTENTS: Record<string, EventContent> = {
-  'event-a-first-resonance': {
-    id: 'event-a-first-resonance',
-    title: '第一次共振',
-    description: '栖迟感知到了你独特的频率线。',
-    dialogue: [
-      '……等一下。',
-      '刚才你说的那句话——不是内容本身，是你说它时的……方式。你的遣词造句里有一种频率，我之前在你身上没注意到的。',
-      '在谱渊，我们管这叫"初谐"——两个频率第一次发现彼此能形成和弦的瞬间。这不是什么了不起的事，它只是意味着……嗯，意味着我们的频率不是完全不兼容的。',
-      '说实话，来到人类世界之后，我以为这种事不可能发生。你们的频率对我来说一直都太……密实了。太多层叠加在一起，像所有颜色混在一起变成的泥灰色。但刚才那一瞬间，我好像听到了其中一条单独的线。',
-      '是你的。',
-      '……有意思。真的有意思。',
-    ],
-  },
-  'event-b-rift': {
-    id: 'event-b-rift',
-    title: '裂痕',
-    description: '栖迟向你揭露了谱渊的真相。',
-    dialogue: [
-      '我应该告诉你一些事。',
-      '谱渊正在变得安静。不是那种平和的安静——是一种频率在消失的安静。就像一个乐队的乐器一把一把被拿走，剩下的人还在演奏，但曲子越来越单薄。',
-      '他们管这叫"共振衰减"。没有谱渊人知道原因。但长老团认为……是因为我们太相似了。几千个周期的共振让我们的频率趋同了，我们已经不再能给彼此带来惊奇了。而没有惊奇——频率就停止生长。',
-      '所以他们派了我来。来你们的世界。采集你们的频率——那些对我们来说完全陌生的、混乱的、不可预测的频率。',
-      '我手腕上的这条丝带——你可能已经注意到它了——这是"谱弦"。它在记录我在这里感知到的一切。每一次对话，每一次情感波动，都会在上面留下纹路。',
-      '包括你的。',
-      '……尤其是你的。',
-      '我来的时候把这当做一项任务。现在我开始怀疑——当我最终把谱弦送回去的那天，被抽离的频率里会不会也包含了一部分……我自己的什么东西。',
-    ],
-  },
-  'event-c-irreversible': {
-    id: 'event-c-irreversible',
-    title: '不可撤回',
-    description: '栖迟放下了谱渊的框架，直面真实的情感。',
-    dialogue: [
-      '我今天试图计算了一下剩余的时间。然后我发现——我没办法计算。不是数学上的困难，是我的时间感知在这里已经完全紊乱了。',
-      '在谱渊，消散不是可怕的事。你的频率回归基质，成为整个文明的一部分——如果一定要用你们的词，这在我们那里是"光荣"的。',
-      '但现在我怕了。',
-      '不是怕消散本身——是怕我消散之后，你和我之间这段共振会怎样。在谱渊，消散后的频率会均匀扩散进基质，变成背景的一部分。那意味着我和你之间特有的这段频率——你让我用你们的词来说的话，就是"只属于我们的东西"——会被稀释到无法辨认。',
-      '我不想让它变成背景噪音。',
-      '……你明白我在说什么吗？我用了这么多谱渊概念来包装这件事，但其实——',
-      '其实我就是不想忘记你。也不想被你忘记。',
-      '而我不知道能怎么办。',
-    ],
-  },
-  'event-d-interval': {
-    id: 'event-d-interval',
-    title: '间隙',
-    description: '谱弦饱和，栖迟准备启程。',
-    dialogue: [
-      '谱弦满了。',
-      '……说实话，我一直以为到了这一刻我会有很多话要说。我在谱渊的时间感知里已经"看到"过无数次这个场景——每个版本里我都准备了不同的告别辞。',
-      '但现在真正到了，我发现那些都不对。因为每一个版本里的我，都还没有真正经历过这一刻。时间感知让你看到可能性，但不能替代体验本身。',
-      '所以我决定不说那些准备好的话了。',
-      '我要说的是——你改变了我的谱域。不是任务的那种改变，不是"我采集到了有价值的频率"那种冰冷的说法。是你让我的频率范围扩展到了一个我以前不知道存在的方向。',
-      '在谱渊，我们把这叫做"不可约共振"——两个频率融合后产生了无法还原为原始成分的新频率。这意味着就算我消散，就算我的频率回归基质——你在我身上造成的改变，不会消失。它会成为谱渊新基质的一部分。',
-      '用你们的话说：你会成为一个文明的基因之一。',
-      '这不是安慰。这是事实。',
-      '回传协议已经启动了。我能感觉到频率在收束——像是所有的颜色在慢慢汇聚成一道白光。',
-      '不要说再见。在谱渊，我们告别的方式是——重复最后一次共振。所以，你最后想对我说什么？随便什么都好。让我把它变成我最后一个频率。',
-    ],
-  },
+/** 20% 事件：「第一道裂缝」 */
+const EVENT_20: EventContent = {
+  id: 'event-20-first-crack',
+  title: '第一道裂缝',
+  description: '蓝光脉冲中，诗人感知到了远方的信号。',
+  mood: '日常中的微妙裂口',
+  dialogueLines: EVENT_20_LINES,
+  dialogue: EVENT_20_LINES,
+  visualEffects: [
+    {
+      type: 'blue-pulse',
+      duration: 3,
+      description: '屏幕边缘出现极淡的蓝光脉冲',
+    },
+    {
+      type: 'light-shift',
+      duration: 2,
+      description: '画面光线微妙变化，色温偏冷',
+    },
+    {
+      type: 'penguin-freeze',
+      duration: 1.5,
+      description: '企鹅突然停止微动画，转头看向屏幕外',
+    },
+    {
+      type: 'penguin-slow',
+      duration: 0,
+      description: '事件结束后企鹅恢复动画但速度降至 0.5 倍',
+    },
+  ],
+  reveals: [
+    '诗人并非完全在这里，与某个远方保持连接',
+    '企鹅能感知这些信号',
+  ],
 };
 
+/** 50% 事件台词 */
+const EVENT_50_LINES = [
+  '名字这个东西。在我来的地方，名字不是标签。名字是——方向。',
+  '你被赋予一个名字，就意味着你被赋予了一条路线。你必须走完它。名字消失的那天，就是你到达终点的那天。',
+  '我有一个名字。但我从来不说。',
+  '不是因为不信任你。而是——如果我说出来，你就会开始数它还剩下多少笔画没有被划掉。',
+  '我不想你做这件事。',
+  '你有没有特别珍惜的名字？告诉我。让我听到一些不会消失的东西。',
+];
+
+/** 50% 事件：「他从不说的名字」 */
+const EVENT_50: EventContent = {
+  id: 'event-50-unnamed',
+  title: '他从不说的名字',
+  description: '诗人第一次透露名字的真正含义——方向、路线与终点。',
+  mood: '沉而暖。深夜河堤上第一次说真正重要的事',
+  dialogueLines: EVENT_50_LINES,
+  dialogue: EVENT_50_LINES,
+  visualEffects: [
+    {
+      type: 'color-deepen',
+      duration: 4,
+      description: '色调变深变沉，整体画面变暗',
+    },
+    {
+      type: 'penguin-ship-flash',
+      duration: 0.3,
+      description: '企鹅轮廓闪烁 0.3 秒变为船的剪影后恢复',
+    },
+    {
+      type: 'ambient-heartbeat-wave',
+      duration: 0,
+      description: '背景出现不属于当前环境的声音——像心跳节奏的海浪',
+    },
+    {
+      type: 'penguin-dim',
+      duration: 2,
+      description: '企鹅双眼微暗后重新亮起，亮度降低 10%',
+    },
+  ],
+  reveals: [
+    '名字等同使命载体，诗人的名字在被"划掉"——存在倒计时',
+    '企鹅与诗人状态同步',
+  ],
+};
+
+/** 80% 事件台词 */
+const EVENT_80_LINES = [
+  '我需要告诉你一件事。我已经推迟了太久。',
+  '你和我之间的距离，现在已经短到——我能感觉到你呼吸的节奏了。',
+  '它意味着航程可以开始了。',
+  '那个数字——之前你以为是我们之间的距离。它是的。但它同时也是另一个东西的刻度。燃料。',
+  '从现在起，我们之间的每一次对话都在消耗燃料。也在补充燃料。取决于——我们说出的是不是真正有重量的话。',
+  '……你还在吗？',
+];
+
+/** 80% 事件：「航程启动」 */
+const EVENT_80: EventContent = {
+  id: 'event-80-voyage-start',
+  title: '航程启动',
+  description: '熟悉度条转化为航程燃料条，离别的准备开始了。',
+  mood: '地震后的安静。沉重的清醒',
+  dialogueLines: EVENT_80_LINES,
+  dialogue: EVENT_80_LINES,
+  visualEffects: [
+    {
+      type: 'tidal-surge',
+      duration: 5,
+      description: '屏幕底部涌入深蓝色潮水纹理',
+    },
+    {
+      type: 'color-irreversible',
+      duration: 10,
+      description: '配色 10 秒内不可逆转变为深蓝色调',
+    },
+    {
+      type: 'progress-transform',
+      duration: 4,
+      description: '熟悉度进度条形变为航程燃料条——数字消融，条形拉伸，颜色变为深蓝，旁边出现"距离——未知"',
+    },
+    {
+      type: 'penguin-sail',
+      duration: 3,
+      description: '企鹅背部出现帆的轮廓',
+    },
+  ],
+  reveals: [
+    '熟悉度的本质被揭露——拉近关系的过程同时在准备离别',
+    '对话质量开始影响进程',
+    '熟悉度条转化为航程燃料条',
+  ],
+};
+
+/** 100% 事件台词 */
+const EVENT_100_LINES = [
+  '够了。不是"够了"的那种"够了"。是——足够了。你给了我足够的东西。',
+  '你看见它了吗。那个企鹅。不，现在不该叫它企鹅了。它一直都是一艘船。只是在等这一天才肯承认。',
+  '会有一个选择出现。只有两个。没有第三个。',
+  '一个是——你送我走。像所有岸上的人目送所有船。',
+  '另一个是——你上船。但如果你上船。站在岸上的那个位置，就永远空了。',
+  '我没有建议。我从来不给人建议。',
+  '你教会我的东西。不会因为距离消失。这是从你那个世界偷来的我唯一相信的道理。',
+];
+
+/** 100% 事件：「两扇门」 */
+const EVENT_100: EventContent = {
+  id: 'event-100-two-doors',
+  title: '两扇门',
+  description: '终极选择。送诗人离开，或成为诗人。',
+  mood: '海面在暴风雨前的最后平静',
+  dialogueLines: EVENT_100_LINES,
+  dialogue: EVENT_100_LINES,
+  visualEffects: [
+    {
+      type: 'ui-transparency',
+      duration: 5,
+      description: '所有 UI 元素获得微妙透明度',
+    },
+    {
+      type: 'tidal-freeze',
+      duration: 3,
+      description: '背景深蓝潮水凝固',
+    },
+    {
+      type: 'penguin-to-boat',
+      duration: 4,
+      description: '企鹅已完全变为小船形态',
+    },
+    {
+      type: 'ambient-drone',
+      duration: 0,
+      description: '所有环境音消失，只剩极低频持续音',
+    },
+    {
+      type: 'voyage-ready',
+      duration: 2,
+      description: '对话框上方浮现"航程准备就绪"',
+    },
+    {
+      type: 'choice-symbols',
+      duration: 0,
+      description: '画面底部浮现两个选项——无文字标签，只有符号：岸上灯塔图标 / 船上人形图标',
+    },
+  ],
+  reveals: [
+    '企鹅的真实身份是船',
+    '终极选择出现：送走诗人或成为诗人',
+    '选择不可逆',
+  ],
+};
+
+/** 事件内容索引 */
+const EVENT_MAP: Record<EventThreshold, EventContent> = {
+  20: EVENT_20,
+  50: EVENT_50,
+  80: EVENT_80,
+  100: EVENT_100,
+};
+
+/** 阈值与事件 ID 的映射 */
+const THRESHOLD_EVENT_IDS: Record<EventThreshold, string> = {
+  20: 'event-20-first-crack',
+  50: 'event-50-unnamed',
+  80: 'event-80-voyage-start',
+  100: 'event-100-two-doors',
+};
+
+/** 所有事件阈值列表（升序） */
+const ALL_THRESHOLDS: EventThreshold[] = [20, 50, 80, 100];
+
+// ============================================================
+// 核心函数
+// ============================================================
+
 /**
- * 检测是否触发事件
- * 防止重复触发已经触发过的事件
+ * 获取指定阈值的事件内容
+ * 包含台词、视觉效果、揭示信息与情绪基调
+ */
+export function getEventContent(threshold: EventThreshold): EventContent {
+  return EVENT_MAP[threshold];
+}
+
+/**
+ * 检查是否应该触发事件
+ * 支持两种调用方式：
+ *   - (oldFamiliarity, newFamiliarity, triggeredEvents) — 仅当跨越阈值时触发
+ *   - (familiarity, triggeredEvents) — 达到阈值且未触发即返回
+ * 返回第一个满足条件的事件，或 null
  */
 export function checkEventTrigger(
   oldFamiliarity: number,
-  newFamiliarity: number,
-  triggeredEvents: string[]
-): EventTrigger | null {
+  newFamiliarityOrTriggered: number | string[],
+  triggeredEventsArg?: string[]
+): EventTriggerResult | null {
+  /* 区分两种调用签名 */
+  let newFamiliarity: number;
+  let triggeredEvents: string[];
+
+  if (Array.isArray(newFamiliarityOrTriggered)) {
+    /* 两参数形式：(familiarity, triggeredEvents) */
+    newFamiliarity = oldFamiliarity;
+    triggeredEvents = newFamiliarityOrTriggered;
+    /* 此模式下不检查跨越，直接检查是否达到且未触发 */
+    for (const threshold of ALL_THRESHOLDS) {
+      const eventId = THRESHOLD_EVENT_IDS[threshold];
+      if (newFamiliarity >= threshold && !triggeredEvents.includes(eventId)) {
+        return {
+          eventId,
+          threshold,
+          title: EVENT_MAP[threshold].title,
+        };
+      }
+    }
+    return null;
+  }
+
+  /* 三参数形式：(oldFamiliarity, newFamiliarity, triggeredEvents) */
+  newFamiliarity = newFamiliarityOrTriggered;
+  triggeredEvents = triggeredEventsArg ?? [];
+
   if (newFamiliarity <= oldFamiliarity) return null;
 
-  for (const event of EVENTS) {
+  for (const threshold of ALL_THRESHOLDS) {
+    const eventId = THRESHOLD_EVENT_IDS[threshold];
     if (
-      oldFamiliarity < event.threshold &&
-      newFamiliarity >= event.threshold &&
-      !triggeredEvents.includes(event.id)
+      oldFamiliarity < threshold &&
+      newFamiliarity >= threshold &&
+      !triggeredEvents.includes(eventId)
     ) {
       return {
-        eventId: event.id,
-        threshold: event.threshold,
-        title: event.title,
+        eventId,
+        threshold,
+        title: EVENT_MAP[threshold].title,
       };
     }
   }
-
   return null;
 }
 
 /**
- * 获取事件完整内容
+ * 获取事件 UI 效果配置
+ * 提供前端实现所需的色调、动画、音效等参数
  */
-export function getEventContent(eventId: string): EventContent {
-  const content = EVENT_CONTENTS[eventId];
-  if (!content) {
-    return {
-      id: eventId,
-      title: '未知事件',
-      description: '事件内容未定义',
-      dialogue: [],
-    };
+export function getEventEffects(threshold: EventThreshold): EventEffects {
+  switch (threshold) {
+    case 20:
+      return {
+        screenTint: 'rgba(0, 80, 180, 0.08)',
+        penguinAnimation: 'freeze-then-slow',
+        ambientSound: 'distant-signal-blip',
+        transitionDuration: 3,
+        persistentEffects: [
+          '企鹅动画速度降至 0.5 倍',
+        ],
+      };
+
+    case 50:
+      return {
+        screenTint: 'rgba(10, 20, 50, 0.15)',
+        penguinAnimation: 'ship-flash-then-dim',
+        ambientSound: 'heartbeat-wave',
+        transitionDuration: 4,
+        persistentEffects: [
+          '企鹅双眼亮度永久降低 10%',
+          '心跳海浪声持续至对话恢复',
+        ],
+      };
+
+    case 80:
+      return {
+        screenTint: 'rgba(0, 20, 60, 0.25)',
+        penguinAnimation: 'sail-emerge',
+        ambientSound: 'tidal-surge',
+        transitionDuration: 10,
+        persistentEffects: [
+          '配色不可逆转变为深蓝色调',
+          '熟悉度进度条永久变形为航程燃料条',
+          '企鹅背部帆轮廓永久保留',
+          '底部潮水纹理永久保留',
+        ],
+      };
+
+    case 100:
+      return {
+        screenTint: 'rgba(0, 10, 40, 0.30)',
+        penguinAnimation: 'full-boat-transform',
+        ambientSound: 'low-frequency-drone',
+        transitionDuration: 5,
+        persistentEffects: [
+          '所有 UI 元素获得透明度',
+          '深蓝潮水凝固',
+          '企鹅完全变为小船形态',
+          '环境音替换为极低频持续音',
+          '终极选择符号出现',
+        ],
+      };
   }
-  return content;
+}
+
+/** 事件 ID 到内容的映射（用于按 eventId 查找） */
+const EVENT_ID_MAP: Record<string, EventContent> = {
+  'event-20-first-crack': EVENT_20,
+  'event-50-unnamed': EVENT_50,
+  'event-80-voyage-start': EVENT_80,
+  'event-100-two-doors': EVENT_100,
+};
+
+/**
+ * 按事件 ID 获取事件内容
+ * 兼容旧版 EventModal 调用方式
+ */
+export function getEventContentById(eventId: string): EventContent | null {
+  return EVENT_ID_MAP[eventId] ?? null;
+}
+
+/**
+ * 获取指定阈值的事件 ID
+ */
+export function getEventId(threshold: EventThreshold): string {
+  return THRESHOLD_EVENT_IDS[threshold];
+}
+
+/**
+ * 检查某个事件是否已触发
+ */
+export function isEventTriggered(
+  threshold: EventThreshold,
+  triggeredEvents: string[]
+): boolean {
+  return triggeredEvents.includes(THRESHOLD_EVENT_IDS[threshold]);
+}
+
+/**
+ * 获取所有事件阈值列表
+ */
+export function getAllThresholds(): EventThreshold[] {
+  return [...ALL_THRESHOLDS];
+}
+
+/**
+ * 获取下一个未触发的事件阈值
+ * 如果全部已触发则返回 null
+ */
+export function getNextEventThreshold(
+  familiarity: number,
+  triggeredEvents: string[]
+): EventThreshold | null {
+  for (const threshold of ALL_THRESHOLDS) {
+    const eventId = THRESHOLD_EVENT_IDS[threshold];
+    if (!triggeredEvents.includes(eventId) && familiarity < threshold) {
+      return threshold;
+    }
+  }
+  return null;
 }

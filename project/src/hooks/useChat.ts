@@ -6,6 +6,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { buildSystemPrompt, buildMessages } from '@/lib/prompt-engine';
 import { checkEventTrigger } from '@/lib/event-system';
+import { checkEndingTrigger } from '@/lib/ending-system';
 import type { ChatMessage } from '@/types/chat';
 
 /** 生成唯一消息 ID */
@@ -17,7 +18,10 @@ interface UseChatReturn {
   isTyping: boolean;
   error: string | null;
   pendingEvent: string | null;
+  /** 终局是否刚被触发（用于通知页面显示终局选择界面） */
+  endingJustTriggered: boolean;
   clearEvent: () => void;
+  clearEndingTriggered: () => void;
   sendMessage: (content: string) => Promise<void>;
 }
 
@@ -26,6 +30,7 @@ export function useChat(): UseChatReturn {
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingEvent, setPendingEvent] = useState<string | null>(null);
+  const [endingJustTriggered, setEndingJustTriggered] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -33,6 +38,10 @@ export function useChat(): UseChatReturn {
 
   const clearEvent = useCallback(() => {
     setPendingEvent(null);
+  }, []);
+
+  const clearEndingTriggered = useCallback(() => {
+    setEndingJustTriggered(false);
   }, []);
 
   const sendMessage = useCallback(async (content: string) => {
@@ -60,9 +69,16 @@ export function useChat(): UseChatReturn {
       economy: state.economy,
       chatHistory: [...state.chatHistory, userMsg],
       meta: state.meta,
+      fuel: state.fuel,
+      penguin: state.penguin,
+      ending: state.ending,
+      spark: state.spark,
     };
     const systemPrompt = buildSystemPrompt(gameState);
     const messages = buildMessages([...state.chatHistory, userMsg], systemPrompt);
+
+    // 在 try 外声明以便 catch 中回滚
+    let assistantMsg: ChatMessage | null = null;
 
     try {
       abortRef.current = new AbortController();
@@ -87,7 +103,7 @@ export function useChat(): UseChatReturn {
       let fullContent = '';
 
       // 添加一个占位的助手消息
-      const assistantMsg: ChatMessage = {
+      assistantMsg = {
         id: genId(),
         role: 'assistant',
         content: '',
@@ -137,10 +153,29 @@ export function useChat(): UseChatReturn {
         setPendingEvent(eventTrigger.eventId);
       }
 
+      // 检测终局触发（熟悉度 100%）
+      if (checkEndingTrigger(afterState.character.familiarity) && !afterState.ending.endingReached) {
+        afterState.triggerEnding();
+        setEndingJustTriggered(true);
+      }
+
+      // 结局二后：增加火种轮数计数
+      if (afterState.ending.postEndingActive) {
+        afterState.incrementTurnsSinceLastSpark();
+      }
+
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
         return;
       }
+
+      // API 失败时回滚：移除本次添加的消息（用户消息 + 可能的占位助手消息）
+      const rollbackState = store.getState();
+      const rollbackHistory = rollbackState.chatHistory.filter(
+        (msg) => msg.id !== userMsg.id && msg.id !== assistantMsg?.id
+      );
+      store.setState({ chatHistory: rollbackHistory });
+
       const message = err instanceof Error ? err.message : '发送失败，请稍后重试';
       setError(message);
 
@@ -157,7 +192,9 @@ export function useChat(): UseChatReturn {
     isTyping,
     error,
     pendingEvent,
+    endingJustTriggered,
     clearEvent,
+    clearEndingTriggered,
     sendMessage,
   };
 }

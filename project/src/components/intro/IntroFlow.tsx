@@ -1,304 +1,428 @@
-/** 趣味自我介绍流程 — 栖迟式对话引导，非传统表单 */
+/**
+ * 趣味自我介绍流程 v2
+ * 6 轮对话式引导，数据驱动自 INTRO_STEPS。
+ * 诗人台词逐行浮现，用户选择/输入后展示诗人回应，再过渡到下一轮。
+ */
 
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
+import { INTRO_STEPS, INTRO_TOTAL_ROUNDS } from '@/data/prompts/intro-prompt';
+import type { IntroStep } from '@/data/prompts/intro-prompt';
 
-/** 打字机效果文字显示 */
-function TypewriterText({ text, onComplete }: { text: string; onComplete?: () => void }) {
-  const [displayText, setDisplayText] = useState('');
-  const indexRef = useRef(0);
+/* ------------------------------------------------------------------ */
+/*  常量                                                               */
+/* ------------------------------------------------------------------ */
 
-  useEffect(() => {
-    indexRef.current = 0;
-    setDisplayText('');
+/** 每行诗人台词之间的出现延迟（秒） */
+const LINE_STAGGER = 0.6;
+/** 诗人台词单行动画时长（秒） */
+const LINE_DURATION = 0.5;
+/** 诗人回应停留时间后自动进入下一轮（毫秒） */
+const RESPONSE_LINGER_MS = 2400;
+/** 最后一轮（第 6 轮）自动完成延迟（毫秒） */
+const FINAL_ROUND_DELAY_MS = 3000;
 
-    const interval = setInterval(() => {
-      if (indexRef.current < text.length) {
-        setDisplayText(text.slice(0, indexRef.current + 1));
-        indexRef.current++;
-      } else {
-        clearInterval(interval);
-        onComplete?.();
-      }
-    }, 50);
+/* ------------------------------------------------------------------ */
+/*  流程阶段枚举                                                        */
+/* ------------------------------------------------------------------ */
 
-    return () => clearInterval(interval);
-  }, [text, onComplete]);
+/** 每一轮内的子阶段 */
+type RoundPhase =
+  | 'lines'       // 诗人台词逐行浮现中
+  | 'interact'    // 台词展示完毕，等待用户操作
+  | 'response'    // 展示诗人回应
+  | 'exiting';    // 正在退出，准备下一轮
 
+/* ------------------------------------------------------------------ */
+/*  子组件：诗人台词行                                                    */
+/* ------------------------------------------------------------------ */
+
+interface PoetLineProps {
+  text: string;
+  index: number;
+  onLastLineShown?: () => void;
+  isLast: boolean;
+}
+
+/** 单行诗人台词 — fade-in-up + 延迟 */
+function PoetLine({ text, index, onLastLineShown, isLast }: PoetLineProps) {
   return (
-    <span className="font-cinis text-body-lg text-txt-primary leading-relaxed">
-      {displayText}
-      {displayText.length < text.length && (
-        <span className="inline-block w-[2px] h-5 bg-jade-500 ml-0.5 animate-pulse-glow" />
-      )}
-    </span>
+    <motion.p
+      className="font-poetic text-poetic text-txt-primary leading-relaxed"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: LINE_DURATION,
+        delay: index * LINE_STAGGER,
+        ease: [0, 0, 0.2, 1],
+      }}
+      onAnimationComplete={() => {
+        if (isLast) onLastLineShown?.();
+      }}
+    >
+      {text}
+    </motion.p>
   );
 }
 
-/** 颜色选择按钮 */
-const COLOR_OPTIONS = [
-  { name: '翡翠绿', value: 'green', color: '#00E5A0' },
-  { name: '琥珀金', value: 'gold', color: '#FFB347' },
-  { name: '深樱红', value: 'red', color: '#C73E5C' },
-  { name: '深海蓝', value: 'blue', color: '#2D3F6E' },
-  { name: '暮紫', value: 'purple', color: '#8B5CF6' },
-  { name: '月白', value: 'white', color: '#E0E6ED' },
-];
+/* ------------------------------------------------------------------ */
+/*  子组件：选项按钮组                                                    */
+/* ------------------------------------------------------------------ */
 
-/** 介绍步骤定义 */
-const STEPS = [
-  {
-    id: 'greeting',
-    text: '……嗯。又一个间隙被打开了。\n\n你的频率很杂乱——不过不用在意，人类都这样。至少你没有像上次那个人那样一上来就问我"你是什么"。这算是个好的开始。',
-    type: 'display' as const,
-  },
-  {
-    id: 'name',
-    text: '你有一个被反复叫到不再觉得特别的名字吧——是什么？',
-    type: 'text-input' as const,
-    question: 'name',
-  },
-  {
-    id: 'color',
-    text: '闭上眼睛，脑海里浮现的第一种颜色是什么？',
-    type: 'color-select' as const,
-    question: 'color',
-  },
-  {
-    id: 'song',
-    text: '最近在循环播放的歌？或者最近让你停下来多看了两秒的东西？',
-    type: 'textarea' as const,
-    question: 'song',
-    placeholder: '什么都行，说细节',
-  },
-  {
-    id: 'time',
-    text: '你上一次觉得"时间突然变慢了"是在什么时候？',
-    type: 'textarea' as const,
-    question: 'time',
-    placeholder: '想到什么说什么',
-  },
-  {
-    id: 'summary',
-    text: '有意思。你的频率比我想象中……复杂一些。不是贬义。复杂意味着有更多可以共振的面。\n\n好吧，我承认我对接下来的对话产生了一点期待。一点点。\n\n走吧——进入正式的对话。',
-    type: 'final' as const,
-  },
-];
+interface OptionButtonsProps {
+  step: IntroStep;
+  onSelect: (value: string) => void;
+}
+
+function OptionButtons({ step, onSelect }: OptionButtonsProps) {
+  if (!step.options) return null;
+
+  return (
+    <motion.div
+      className="flex flex-wrap justify-center gap-4"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
+    >
+      {step.options.map((opt) => (
+        <motion.button
+          key={opt.value}
+          onClick={() => onSelect(opt.value)}
+          className="btn-primary"
+          whileHover={{
+            scale: 1.04,
+            boxShadow: '0 0 36px rgba(0, 229, 160, 0.30)',
+          }}
+          whileTap={{ scale: 0.97 }}
+        >
+          {opt.label}
+        </motion.button>
+      ))}
+    </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  子组件：自由输入框                                                    */
+/* ------------------------------------------------------------------ */
+
+interface FreeInputProps {
+  onSubmit: (text: string) => void;
+  placeholder?: string;
+}
+
+function FreeInput({ onSubmit, placeholder }: FreeInputProps) {
+  const [value, setValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // 入场后自动聚焦
+    const timer = setTimeout(() => inputRef.current?.focus(), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter' && value.trim()) {
+        e.preventDefault();
+        onSubmit(value.trim());
+      }
+    },
+    [value, onSubmit],
+  );
+
+  return (
+    <motion.div
+      className="w-full max-w-md"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.15, ease: [0, 0, 0.2, 1] }}
+    >
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        className="input-chat w-full"
+        placeholder={placeholder ?? '输入你的回答...'}
+      />
+      <AnimatePresence>
+        {value.trim() && (
+          <motion.button
+            className="mt-4 mx-auto block text-caption text-jade-500 hover:text-jade-300 transition-colors"
+            onClick={() => onSubmit(value.trim())}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            确认
+          </motion.button>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  子组件：诗人回应气泡                                                  */
+/* ------------------------------------------------------------------ */
+
+interface PoetResponseProps {
+  text: string;
+}
+
+function PoetResponse({ text }: PoetResponseProps) {
+  return (
+    <motion.div
+      className="bubble-poet max-w-md"
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, y: -16 }}
+      transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
+    >
+      {text}
+    </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  子组件：步骤指示器                                                    */
+/* ------------------------------------------------------------------ */
+
+interface StepIndicatorProps {
+  total: number;
+  current: number;
+}
+
+function StepIndicator({ total, current }: StepIndicatorProps) {
+  return (
+    <div className="flex gap-2">
+      {Array.from({ length: total }, (_, i) => (
+        <motion.div
+          key={i}
+          className={`w-2 h-2 rounded-full transition-all duration-slow ${
+            i < current
+              ? 'bg-jade-500/50'
+              : i === current
+                ? 'bg-jade-500 shadow-jade-glow'
+                : 'border border-white/[0.06]'
+          }`}
+          layout
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  主组件                                                             */
+/* ------------------------------------------------------------------ */
 
 interface IntroFlowProps {
   onComplete: () => void;
 }
 
-/** 趣味自我介绍流程组件 */
 export default function IntroFlow({ onComplete }: IntroFlowProps) {
-  const [step, setStep] = useState(0);
-  const [textReady, setTextReady] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const { setUserName, saveIntroAnswer, completeIntro } = useGameStore();
-  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  /* --- Store --- */
+  const { saveIntroAnswer, setUserName, completeIntro } = useGameStore();
+  const userName = useGameStore((s) => s.user.name);
 
-  const currentStep = STEPS[step];
+  /* --- 本地状态 --- */
+  const [roundIndex, setRoundIndex] = useState(0);
+  const [phase, setPhase] = useState<RoundPhase>('lines');
+  const [responseText, setResponseText] = useState('');
 
-  // 文字展示完后聚焦输入框
+  /* 防止 setTimeout 泄漏 */
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    if (textReady && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [textReady]);
-
-  // 每步重置状态
-  useEffect(() => {
-    setTextReady(false);
-    setInputValue('');
-  }, [step]);
-
-  const handleTextComplete = useCallback(() => {
-    setTextReady(true);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []);
 
-  const handleSubmit = useCallback(() => {
-    if (!inputValue.trim()) return;
+  /* 当前轮次数据（含边界保护） */
+  const safeIndex = Math.min(roundIndex, INTRO_STEPS.length - 1);
+  const currentStep = INTRO_STEPS[safeIndex];
+  const isLastRound = safeIndex === INTRO_TOTAL_ROUNDS - 1;
 
-    const current = STEPS[step];
-    if (current.question === 'name') {
-      setUserName(inputValue.trim());
+  /* 替换第 6 轮中的 {userName} 占位符 */
+  const resolvePoetLines = useCallback(
+    (lines: string[]): string[] =>
+      lines.map((line) => line.replace('{userName}', userName || '你')),
+    [userName],
+  );
+
+  const poetLines = resolvePoetLines(currentStep.poetLines);
+
+  /* --- 回调 --- */
+
+  /** 诗人台词全部展示完毕 */
+  const handleLinesComplete = useCallback(() => {
+    // 最后一轮（第 6 轮）没有交互，展示完直接等待后 complete
+    if (isLastRound) {
+      setPhase('interact'); // 短暂展示，然后自动完成
+      timerRef.current = setTimeout(() => {
+        completeIntro();
+        onComplete();
+      }, FINAL_ROUND_DELAY_MS);
+      return;
     }
-    if (current.question) {
-      saveIntroAnswer(current.question, inputValue.trim());
-    }
+    setPhase('interact');
+  }, [isLastRound, completeIntro, onComplete]);
 
-    setStep((s) => s + 1);
-  }, [inputValue, step, setUserName, saveIntroAnswer]);
+  /** 用户选择了一个预设选项 */
+  const handleOptionSelect = useCallback(
+    (value: string) => {
+      // 保存回答
+      if (currentStep.systemRecord) {
+        saveIntroAnswer(currentStep.systemRecord, value);
+      }
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  }, [handleSubmit]);
+      // 查找回应
+      const response = currentStep.responseMap?.[value];
+      if (response) {
+        setResponseText(response);
+        setPhase('response');
+        timerRef.current = setTimeout(() => {
+          setPhase('exiting');
+        }, RESPONSE_LINGER_MS);
+      } else {
+        // 无回应映射，直接进入下一轮
+        setPhase('exiting');
+      }
+    },
+    [currentStep, saveIntroAnswer],
+  );
 
-  const handleAdvance = useCallback(() => {
-    if (step < STEPS.length - 1) {
-      setStep((s) => s + 1);
-    }
-  }, [step]);
+  /** 用户提交了自由输入 */
+  const handleFreeSubmit = useCallback(
+    (text: string) => {
+      // 第 5 轮是名字
+      if (currentStep.systemRecord === 'userName') {
+        setUserName(text);
+      }
+      if (currentStep.systemRecord) {
+        saveIntroAnswer(currentStep.systemRecord, text);
+      }
 
-  const handleComplete = useCallback(() => {
-    completeIntro();
-    onComplete();
-  }, [completeIntro, onComplete]);
+      // 自由输入的回应暂不调用 GLM-5，用一句过渡性文字
+      // （后续集成阶段会替换为真实 API 调用）
+      setResponseText('......');
+      setPhase('response');
+      timerRef.current = setTimeout(() => {
+        setPhase('exiting');
+      }, RESPONSE_LINGER_MS * 0.6);
+    },
+    [currentStep, saveIntroAnswer, setUserName],
+  );
+
+  /** exiting 动画完成后推进到下一轮 */
+  const handleExitComplete = useCallback(() => {
+    if (phase !== 'exiting') return;
+    setRoundIndex((prev) => prev + 1);
+    setPhase('lines');
+    setResponseText('');
+  }, [phase]);
+
+  /* --- 判断是否展示自由输入（同时有选项 + freeInput 时，选项下方追加输入框） --- */
+  const showOptions = phase === 'interact' && !!currentStep.options && !isLastRound;
+  const showFreeInput = phase === 'interact' && !!currentStep.freeInput && !isLastRound;
+
+  /* --- 渲染 --- */
 
   return (
-    <div className="fixed inset-0 bg-abyss-950 flex flex-col items-center justify-center px-4 sm:px-6 z-content">
-      <AnimatePresence mode="wait">
+    <div className="fixed inset-0 bg-gradient-deep flex flex-col items-center justify-center px-4 sm:px-6 z-content overflow-hidden">
+      {/* 深空背景微粒效果 — 纯 CSS */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <div className="absolute top-1/4 left-1/3 w-[600px] h-[600px] rounded-full bg-jade-500/[0.02] blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-amber-500/[0.015] blur-[100px]" />
+      </div>
+
+      <AnimatePresence mode="wait" onExitComplete={handleExitComplete}>
         <motion.div
-          key={step}
-          className="max-w-lg w-full flex flex-col items-center gap-8"
-          initial={{ opacity: 0, y: 20 }}
+          key={roundIndex}
+          className="relative max-w-xl w-full flex flex-col items-center gap-8"
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.4 }}
+          exit={{ opacity: 0, y: -24 }}
+          transition={{
+            duration: 0.5,
+            ease: [0.16, 1, 0.3, 1],
+          }}
         >
-          {/* 栖迟的文字 */}
-          <div className="w-full text-center min-h-[120px]">
-            <TypewriterText
-              text={currentStep.text}
-              onComplete={handleTextComplete}
-            />
+          {/* 诗人台词区域 */}
+          <div className="w-full flex flex-col gap-4 min-h-[140px]">
+            {poetLines.map((line, i) => (
+              <PoetLine
+                key={`${roundIndex}-${i}`}
+                text={line}
+                index={i}
+                isLast={i === poetLines.length - 1}
+                onLastLineShown={handleLinesComplete}
+              />
+            ))}
           </div>
 
           {/* 交互区域 */}
-          {textReady && (
-            <motion.div
-              className="w-full flex flex-col items-center gap-4"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {/* 纯展示步骤 — 点击继续 */}
-              {currentStep.type === 'display' && (
-                <button
-                  onClick={handleAdvance}
-                  className="text-caption text-txt-muted hover:text-jade-500 transition-colors"
-                >
-                  继续
-                </button>
-              )}
+          <AnimatePresence mode="wait">
+            {showOptions && (
+              <OptionButtons
+                key="options"
+                step={currentStep}
+                onSelect={handleOptionSelect}
+              />
+            )}
+          </AnimatePresence>
 
-              {/* 文本输入 */}
-              {currentStep.type === 'text-input' && (
-                <div className="w-full max-w-sm">
-                  <input
-                    ref={inputRef as React.RefObject<HTMLInputElement>}
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    className="w-full bg-transparent border-b border-jade-500/30 pb-2 text-center text-body-lg text-txt-primary font-body outline-none focus:border-jade-500 transition-colors caret-jade-500"
-                    placeholder="输入你的名字"
-                    autoFocus
-                  />
-                  {inputValue.trim() && (
-                    <motion.button
-                      className="mt-4 mx-auto block text-caption text-jade-500"
-                      onClick={handleSubmit}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                    >
-                      确认
-                    </motion.button>
-                  )}
-                </div>
-              )}
+          <AnimatePresence mode="wait">
+            {showFreeInput && (
+              <FreeInput
+                key="free-input"
+                onSubmit={handleFreeSubmit}
+                placeholder={
+                  currentStep.systemRecord === 'userName'
+                    ? '你希望被叫的名字'
+                    : '或者，用你自己的话说...'
+                }
+              />
+            )}
+          </AnimatePresence>
 
-              {/* 颜色选择 */}
-              {currentStep.type === 'color-select' && (
-                <div className="flex flex-wrap justify-center gap-4">
-                  {COLOR_OPTIONS.map((opt) => (
-                    <motion.button
-                      key={opt.value}
-                      onClick={() => {
-                        setInputValue(opt.name);
-                        saveIntroAnswer('color', opt.name);
-                        setTimeout(() => setStep((s) => s + 1), 400);
-                      }}
-                      className="flex flex-col items-center gap-2 group"
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <div
-                        className="w-12 h-12 rounded-full border-2 border-white/10 group-hover:border-white/30 transition-all"
-                        style={{
-                          backgroundColor: opt.color,
-                          boxShadow: `0 0 15px ${opt.color}40`,
-                        }}
-                      />
-                      <span className="text-caption text-txt-secondary group-hover:text-txt-primary transition-colors">
-                        {opt.name}
-                      </span>
-                    </motion.button>
-                  ))}
-                </div>
-              )}
+          {/* 最后一轮的"进入对话"按钮 */}
+          <AnimatePresence>
+            {isLastRound && phase === 'interact' && (
+              <motion.button
+                className="btn-primary"
+                onClick={() => {
+                  if (timerRef.current) clearTimeout(timerRef.current);
+                  completeIntro();
+                  onComplete();
+                }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ delay: 0.6, duration: 0.4 }}
+              >
+                进入对话
+              </motion.button>
+            )}
+          </AnimatePresence>
 
-              {/* 多行文本 */}
-              {currentStep.type === 'textarea' && (
-                <div className="w-full max-w-sm">
-                  <textarea
-                    ref={inputRef as React.RefObject<HTMLTextAreaElement>}
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    rows={3}
-                    className="w-full bg-transparent border border-white/[0.06] rounded-card p-4 text-body text-txt-primary font-body outline-none focus:border-jade-500/40 transition-colors caret-jade-500 resize-none"
-                    placeholder={('placeholder' in currentStep ? currentStep.placeholder : '') ?? ''}
-                    autoFocus
-                  />
-                  {inputValue.trim() && (
-                    <motion.button
-                      className="mt-3 mx-auto block text-caption text-jade-500"
-                      onClick={handleSubmit}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                    >
-                      确认
-                    </motion.button>
-                  )}
-                </div>
-              )}
-
-              {/* 最终步骤 — 进入聊天 */}
-              {currentStep.type === 'final' && (
-                <motion.button
-                  className="btn-jade"
-                  onClick={handleComplete}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  进入对话
-                </motion.button>
-              )}
-            </motion.div>
-          )}
+          {/* 诗人回应气泡 */}
+          <AnimatePresence>
+            {phase === 'response' && responseText && (
+              <PoetResponse key="response" text={responseText} />
+            )}
+          </AnimatePresence>
 
           {/* 步骤指示器 */}
-          <div className="flex gap-2 mt-4">
-            {STEPS.map((_, i) => (
-              <div
-                key={i}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  i < step
-                    ? 'bg-jade-500/50'
-                    : i === step
-                      ? 'bg-jade-500'
-                      : 'border border-white/[0.06]'
-                }`}
-              />
-            ))}
+          <div className="mt-4">
+            <StepIndicator total={INTRO_TOTAL_ROUNDS} current={roundIndex} />
           </div>
         </motion.div>
       </AnimatePresence>

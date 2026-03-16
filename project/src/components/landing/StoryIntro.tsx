@@ -61,7 +61,7 @@ export default function StoryIntro() {
           <p className="font-display text-overline uppercase text-txt-secondary tracking-widest mb-8">
             谱织师 / 跨维共振采集者
           </p>
-          <div className="space-y-4 font-cinis text-body-lg text-txt-primary leading-relaxed">
+          <div className="space-y-4 font-poetic text-body-lg text-txt-primary leading-relaxed">
             <p>
               {'\u201C'}我来自一个用频率描述一切的世界——颜色是频率，情感是频率，
               时间本身也只是频率的叠加方式不同而已。{'\u201D'}

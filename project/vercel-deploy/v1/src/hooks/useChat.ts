@@ -60,6 +60,10 @@ export function useChat(): UseChatReturn {
       economy: state.economy,
       chatHistory: [...state.chatHistory, userMsg],
       meta: state.meta,
+      fuel: state.fuel,
+      penguin: state.penguin,
+      ending: state.ending,
+      spark: state.spark,
     };
     const systemPrompt = buildSystemPrompt(gameState);
     const messages = buildMessages([...state.chatHistory, userMsg], systemPrompt);

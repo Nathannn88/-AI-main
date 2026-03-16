@@ -18,10 +18,10 @@ describe('自我介绍流程集成', () => {
 
   it('设置用户名后正确保存', () => {
     const store = useGameStore.getState();
-    store.setUserName('烬渊测试者');
+    store.setUserName('栖迟测试者');
 
     const after = useGameStore.getState();
-    expect(after.user.name).toBe('烬渊测试者');
+    expect(after.user.name).toBe('栖迟测试者');
   });
 
   it('保存介绍回答后正确存储', () => {
@@ -66,6 +66,10 @@ describe('自我介绍流程集成', () => {
       economy: state.economy,
       chatHistory: state.chatHistory,
       meta: state.meta,
+      fuel: state.fuel,
+      penguin: state.penguin,
+      ending: state.ending,
+      spark: state.spark,
     };
     const prompt = buildSystemPrompt(gameState);
 
