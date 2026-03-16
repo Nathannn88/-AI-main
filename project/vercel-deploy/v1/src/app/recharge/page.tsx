@@ -35,7 +35,7 @@ export default function RechargePage() {
   return (
     <div className="min-h-screen bg-abyss-900 flex flex-col">
       {/* 顶部栏 */}
-      <div className="glass-panel-light h-14 flex items-center justify-between px-4 shrink-0">
+      <div className="glass-light h-14 flex items-center justify-between px-4 shrink-0">
         <button
           onClick={() => router.back()}
           className="flex items-center gap-2 text-txt-secondary hover:text-txt-primary transition-colors"
@@ -109,7 +109,7 @@ export default function RechargePage() {
         {/* 确认按钮 */}
         <div className="flex justify-center mt-6">
           <Button
-            variant="amber"
+            variant="secondary"
             disabled={selected === null}
             onClick={handleRecharge}
           >
@@ -129,7 +129,7 @@ export default function RechargePage() {
             transition={{ duration: 0.2 }}
           >
             <motion.div
-              className="glass-panel-elevated rounded-modal px-8 py-6 text-center"
+              className="glass-elevated rounded-modal px-8 py-6 text-center"
               initial={{ scale: 0.5, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: -30, opacity: 0 }}

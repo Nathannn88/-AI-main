@@ -1,72 +1,79 @@
-/** 事件系统单元测试 */
+/** 事件系统单元测试 — 适配新版事件内容与接口 */
 
 import { describe, it, expect } from 'vitest';
 import {
-  EVENTS,
   checkEventTrigger,
   getEventContent,
+  getEventContentById,
+  getAllThresholds,
+  getEventId,
 } from '@/lib/event-system';
+import type { EventThreshold } from '@/lib/event-system';
 
-describe('EVENTS - 事件定义', () => {
-  it('定义了 4 个事件', () => {
-    expect(EVENTS).toHaveLength(4);
+/** 所有阈值列表 */
+const THRESHOLDS: EventThreshold[] = [20, 50, 80, 100];
+
+describe('事件定义', () => {
+  it('定义了 4 个阈值事件', () => {
+    expect(getAllThresholds()).toHaveLength(4);
   });
 
   it('阈值分别为 20/50/80/100', () => {
-    const thresholds = EVENTS.map((e) => e.threshold);
-    expect(thresholds).toEqual([20, 50, 80, 100]);
+    expect(getAllThresholds()).toEqual([20, 50, 80, 100]);
   });
 
-  it('每个事件都有 id、title、description', () => {
-    for (const event of EVENTS) {
-      expect(event.id).toBeTruthy();
-      expect(event.title).toBeTruthy();
-      expect(event.description).toBeTruthy();
+  it('每个事件都有 id、title、description、dialogue', () => {
+    for (const threshold of THRESHOLDS) {
+      const content = getEventContent(threshold);
+      expect(content.id).toBeTruthy();
+      expect(content.title).toBeTruthy();
+      expect(content.description).toBeTruthy();
+      expect(content.dialogue.length).toBeGreaterThan(0);
     }
   });
 
   it('事件 id 唯一', () => {
-    const ids = EVENTS.map((e) => e.id);
+    const ids = THRESHOLDS.map((t) => getEventId(t));
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
 
 describe('checkEventTrigger - 事件触发检测', () => {
-  it('跨越 20% 触发事件 A', () => {
+  it('跨越 20% 触发第一道裂缝', () => {
     const result = checkEventTrigger(19, 21, []);
     expect(result).not.toBeNull();
     expect(result?.threshold).toBe(20);
-    expect(result?.eventId).toBe('event-a-first-resonance');
+    expect(result?.eventId).toBe('event-20-first-crack');
   });
 
-  it('跨越 50% 触发事件 B', () => {
-    const result = checkEventTrigger(45, 55, ['event-a-first-resonance']);
+  it('跨越 50% 触发他从不说的名字', () => {
+    const result = checkEventTrigger(45, 55, ['event-20-first-crack']);
     expect(result).not.toBeNull();
     expect(result?.threshold).toBe(50);
-    expect(result?.eventId).toBe('event-b-rift');
+    expect(result?.eventId).toBe('event-50-unnamed');
   });
 
-  it('跨越 80% 触发事件 C', () => {
+  it('跨越 80% 触发航程启动', () => {
     const result = checkEventTrigger(75, 85, [
-      'event-a-first-resonance',
-      'event-b-rift',
+      'event-20-first-crack',
+      'event-50-unnamed',
     ]);
     expect(result).not.toBeNull();
     expect(result?.threshold).toBe(80);
   });
 
-  it('跨越 100% 触发事件 D', () => {
+  it('跨越 100% 触发两扇门', () => {
     const result = checkEventTrigger(95, 100, [
-      'event-a-first-resonance',
-      'event-b-rift',
-      'event-c-irreversible',
+      'event-20-first-crack',
+      'event-50-unnamed',
+      'event-80-voyage-start',
     ]);
     expect(result).not.toBeNull();
     expect(result?.threshold).toBe(100);
   });
 
   it('已触发的事件不会重复触发', () => {
-    const result = checkEventTrigger(19, 21, ['event-a-first-resonance']);
+    const result = checkEventTrigger(19, 21, ['event-20-first-crack']);
     expect(result).toBeNull();
   });
 
@@ -86,7 +93,6 @@ describe('checkEventTrigger - 事件触发检测', () => {
   });
 
   it('一次跨越多个阈值，触发最近的一个', () => {
-    // 从 0 到 55，跨越了 20 和 50，返回第一个（20）
     const result = checkEventTrigger(0, 55, []);
     expect(result).not.toBeNull();
     expect(result?.threshold).toBe(20);
@@ -105,44 +111,70 @@ describe('checkEventTrigger - 事件触发检测', () => {
 });
 
 describe('getEventContent - 获取事件内容', () => {
-  it('获取事件 A 的内容', () => {
-    const content = getEventContent('event-a-first-resonance');
-    expect(content.title).toBe('第一次共振');
+  it('获取 20% 事件内容', () => {
+    const content = getEventContent(20);
+    expect(content.title).toBe('第一道裂缝');
     expect(content.dialogue).toBeInstanceOf(Array);
     expect(content.dialogue.length).toBeGreaterThan(0);
   });
 
-  it('获取事件 B 的内容', () => {
-    const content = getEventContent('event-b-rift');
-    expect(content.title).toBe('裂痕');
+  it('获取 50% 事件内容', () => {
+    const content = getEventContent(50);
+    expect(content.title).toBe('他从不说的名字');
     expect(content.dialogue.length).toBeGreaterThan(0);
   });
 
-  it('获取事件 C 的内容', () => {
-    const content = getEventContent('event-c-irreversible');
-    expect(content.title).toBe('不可撤回');
+  it('获取 80% 事件内容', () => {
+    const content = getEventContent(80);
+    expect(content.title).toBe('航程启动');
     expect(content.dialogue.length).toBeGreaterThan(0);
   });
 
-  it('获取事件 D 的内容', () => {
-    const content = getEventContent('event-d-interval');
-    expect(content.title).toBe('间隙');
+  it('获取 100% 事件内容', () => {
+    const content = getEventContent(100);
+    expect(content.title).toBe('两扇门');
     expect(content.dialogue.length).toBeGreaterThan(0);
   });
 
-  it('未知事件 id 返回默认内容', () => {
-    const content = getEventContent('nonexistent');
-    expect(content.title).toBe('未知事件');
-    expect(content.dialogue).toEqual([]);
+  it('通过 eventId 获取事件内容', () => {
+    const content = getEventContentById('event-20-first-crack');
+    expect(content).not.toBeNull();
+    expect(content?.title).toBe('第一道裂缝');
+  });
+
+  it('未知 eventId 返回 null', () => {
+    const content = getEventContentById('nonexistent');
+    expect(content).toBeNull();
   });
 
   it('事件对话内容不为空', () => {
-    for (const event of EVENTS) {
-      const content = getEventContent(event.id);
+    for (const threshold of THRESHOLDS) {
+      const content = getEventContent(threshold);
       expect(content.dialogue.length).toBeGreaterThan(0);
       for (const line of content.dialogue) {
         expect(line.length).toBeGreaterThan(0);
       }
+    }
+  });
+
+  it('每个事件都有 mood 情绪基调', () => {
+    for (const threshold of THRESHOLDS) {
+      const content = getEventContent(threshold);
+      expect(content.mood).toBeTruthy();
+    }
+  });
+
+  it('每个事件都有视觉效果定义', () => {
+    for (const threshold of THRESHOLDS) {
+      const content = getEventContent(threshold);
+      expect(content.visualEffects.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('每个事件都有揭示信息', () => {
+    for (const threshold of THRESHOLDS) {
+      const content = getEventContent(threshold);
+      expect(content.reveals.length).toBeGreaterThan(0);
     }
   });
 });

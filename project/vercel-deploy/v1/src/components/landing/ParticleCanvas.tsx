@@ -24,6 +24,11 @@ interface ParticleCanvasProps {
   className?: string;
 }
 
+/** 连线距离阈值 */
+const LINE_DISTANCE = 100;
+/** 连线距离阈值的平方（避免每帧 sqrt） */
+const LINE_DISTANCE_SQ = LINE_DISTANCE * LINE_DISTANCE;
+
 /** 背景粒子画布，用于 Landing Page 和聊天界面 */
 export default function ParticleCanvas({
   colors = ['#00E5A0', '#33EDBA', '#7FF5D5'],
@@ -69,9 +74,10 @@ export default function ParticleCanvas({
 
     function resize() {
       if (!canvas) return;
-      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-      ctx!.scale(window.devicePixelRatio, window.devicePixelRatio);
+      const dpr = window.devicePixelRatio;
+      canvas.width = canvas.offsetWidth * dpr;
+      canvas.height = canvas.offsetHeight * dpr;
+      ctx!.scale(dpr, dpr);
       initParticles(canvas.offsetWidth, canvas.offsetHeight);
     }
 
@@ -105,20 +111,21 @@ export default function ParticleCanvas({
         ctx.fill();
       }
 
-      // 绘制连线
+      // 绘制连线（用平方距离避免 sqrt）
       if (showLines) {
+        ctx.lineWidth = 0.5;
         for (let i = 0; i < particles.length; i++) {
           for (let j = i + 1; j < particles.length; j++) {
             const dx = particles[i].x - particles[j].x;
             const dy = particles[i].y - particles[j].y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 100) {
+            const distSq = dx * dx + dy * dy;
+            if (distSq < LINE_DISTANCE_SQ) {
+              const dist = Math.sqrt(distSq);
               ctx.beginPath();
               ctx.moveTo(particles[i].x, particles[i].y);
               ctx.lineTo(particles[j].x, particles[j].y);
               ctx.strokeStyle = particles[i].color;
-              ctx.globalAlpha = 0.05 * (1 - dist / 100);
-              ctx.lineWidth = 0.5;
+              ctx.globalAlpha = 0.05 * (1 - dist / LINE_DISTANCE);
               ctx.stroke();
             }
           }
@@ -141,6 +148,7 @@ export default function ParticleCanvas({
     <canvas
       ref={canvasRef}
       className={`absolute inset-0 w-full h-full z-particles pointer-events-none ${className}`}
+      style={{ willChange: 'contents' }}
       aria-hidden="true"
     />
   );

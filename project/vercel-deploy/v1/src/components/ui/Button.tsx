@@ -4,7 +4,7 @@
 
 import { motion } from 'framer-motion';
 
-type ButtonVariant = 'jade' | 'amber' | 'ghost';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 interface ButtonProps {
   variant?: ButtonVariant;
@@ -17,14 +17,15 @@ interface ButtonProps {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  jade: 'btn-jade',
-  amber: 'btn-amber',
+  primary: 'btn-primary',
+  secondary: 'btn-secondary',
   ghost: 'btn-ghost',
+  danger: 'btn-danger',
 };
 
 /** 通用按钮，支持三种视觉变体 */
 export default function Button({
-  variant = 'jade',
+  variant = 'primary',
   children,
   className = '',
   disabled,
