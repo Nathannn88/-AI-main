@@ -2,12 +2,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useGameStore } from '@/store/gameStore';
-import {
-  checkEventTrigger,
-  getEventContent,
-  getEventContentById,
-  getAllThresholds,
-} from '@/lib/event-system';
+import { checkEventTrigger, getEventContent, EVENTS } from '@/lib/event-system';
 import { buildSystemPrompt } from '@/lib/prompt-engine';
 
 describe('事件触发集成', () => {
@@ -15,20 +10,21 @@ describe('事件触发集成', () => {
     useGameStore.getState().resetState();
   });
 
-  it('19% → 20% 精确触发第一道裂缝', () => {
+  it('19% → 20% 精确触发事件A', () => {
     const store = useGameStore.getState();
     store.updateFamiliarityValue(19);
 
+    // 再增加 1% 触发
     const trigger = checkEventTrigger(19, 20, []);
     expect(trigger).not.toBeNull();
-    expect(trigger!.eventId).toBe('event-20-first-crack');
-    expect(trigger!.title).toBe('第一道裂缝');
+    expect(trigger!.eventId).toBe('event-a-first-resonance');
+    expect(trigger!.title).toBe('第一次共振');
   });
 
-  it('19.9% → 20% 精确触发第一道裂缝', () => {
+  it('19.9% → 20% 精确触发事件A', () => {
     const trigger = checkEventTrigger(19.9, 20, []);
     expect(trigger).not.toBeNull();
-    expect(trigger!.eventId).toBe('event-20-first-crack');
+    expect(trigger!.eventId).toBe('event-a-first-resonance');
   });
 
   it('20% → 20.1% 不触发（已经在 20% 以上）', () => {
@@ -39,65 +35,72 @@ describe('事件触发集成', () => {
   it('0% → 100% 只触发第一个未触发的事件', () => {
     const trigger = checkEventTrigger(0, 100, []);
     expect(trigger).not.toBeNull();
-    expect(trigger!.eventId).toBe('event-20-first-crack');
+    expect(trigger!.eventId).toBe('event-a-first-resonance');
   });
 
   it('已触发事件不会重复触发', () => {
-    const triggered = ['event-20-first-crack'];
+    const triggered = ['event-a-first-resonance'];
     const trigger = checkEventTrigger(19, 25, triggered);
     expect(trigger).toBeNull();
   });
 
   it('跳过已触发事件后触发下一个', () => {
-    const triggered = ['event-20-first-crack'];
+    const triggered = ['event-a-first-resonance'];
     const trigger = checkEventTrigger(45, 55, triggered);
     expect(trigger).not.toBeNull();
-    expect(trigger!.eventId).toBe('event-50-unnamed');
+    expect(trigger!.eventId).toBe('event-b-rift');
   });
 
-  it('通过 updateFamiliarityValue 触发事件后 store 正确更新', () => {
+  it('通过 sendGift 触发事件后 store 正确更新', () => {
     const store = useGameStore.getState();
+    store.addGold(500);
     store.updateFamiliarityValue(19);
 
-    useGameStore.getState().updateFamiliarityValue(1);
+    // 送 100 金币 → +10% → 29%，跨过 20%
+    useGameStore.getState().sendGift(100);
 
     const after = useGameStore.getState();
-    expect(after.character.eventsTriggered).toContain('event-20-first-crack');
+    expect(after.character.eventsTriggered).toContain('event-a-first-resonance');
     expect(after.character.currentPhase).toBe('acquaintance');
   });
 
   it('通过 sendMessage 触发事件后 store 正确更新', () => {
     const store = useGameStore.getState();
+    // 推到 19.9%（接近阈值）
     store.updateFamiliarityValue(19.9);
 
-    const longMessage = '这是一段用于测试的文字内容'.repeat(10);
+    // 发送足够字数的消息推过 20%
+    // 需要 0.1% = 100字
+    const longMessage = '这是一段用于测试的文字内容'.repeat(10); // 约 120 字
     useGameStore.getState().sendMessage(longMessage, '收到');
 
     const after = useGameStore.getState();
+    // 可能已触发也可能差一点，取决于精确字数
     if (after.character.familiarity >= 20) {
-      expect(after.character.eventsTriggered).toContain('event-20-first-crack');
+      expect(after.character.eventsTriggered).toContain('event-a-first-resonance');
     }
   });
 
   it('四个事件都有完整内容', () => {
-    for (const threshold of getAllThresholds()) {
-      const content = getEventContent(threshold);
-      expect(content.id).toBeTruthy();
+    for (const event of EVENTS) {
+      const content = getEventContent(event.id);
+      expect(content.id).toBe(event.id);
       expect(content.title).toBeTruthy();
       expect(content.description).toBeTruthy();
       expect(content.dialogue.length).toBeGreaterThan(0);
     }
   });
 
-  it('通过 eventId 获取不存在事件返回 null', () => {
-    const content = getEventContentById('non-existent-event');
-    expect(content).toBeNull();
+  it('获取不存在事件返回默认内容', () => {
+    const content = getEventContent('non-existent-event');
+    expect(content.title).toBe('未知事件');
+    expect(content.dialogue).toHaveLength(0);
   });
 
-  it('事件触发后 system prompt 包含事件相关内容', () => {
+  it('事件触发后 system prompt 包含事件指令', () => {
     const store = useGameStore.getState();
     store.setUserName('测试');
-    store.triggerEvent('event-50-unnamed');
+    store.triggerEvent('event-b-rift');
     store.updateFamiliarityValue(55);
 
     const state = useGameStore.getState();
@@ -107,45 +110,41 @@ describe('事件触发集成', () => {
       economy: state.economy,
       chatHistory: state.chatHistory,
       meta: state.meta,
-      fuel: state.fuel,
-      penguin: state.penguin,
-      ending: state.ending,
-      spark: state.spark,
     };
     const prompt = buildSystemPrompt(gameState);
 
-    /* prompt 中应包含与已触发事件相关的信息 */
-    expect(prompt).toBeTruthy();
+    expect(prompt).toContain('裂痕');
+    expect(prompt).toContain('共振衰减');
   });
 
-  it('四个阈值按正确顺序排列', () => {
-    const thresholds = getAllThresholds();
-    expect(thresholds[0]).toBe(20);
-    expect(thresholds[1]).toBe(50);
-    expect(thresholds[2]).toBe(80);
-    expect(thresholds[3]).toBe(100);
+  it('四个阈值事件按正确顺序排列', () => {
+    expect(EVENTS[0].threshold).toBe(20);
+    expect(EVENTS[1].threshold).toBe(50);
+    expect(EVENTS[2].threshold).toBe(80);
+    expect(EVENTS[3].threshold).toBe(100);
   });
 
-  it('连续增加熟悉度依次触发多个事件', () => {
+  it('连续送礼依次触发多个事件', () => {
     const store = useGameStore.getState();
+    store.addGold(10000);
 
-    /* 增加到 20% → 第一道裂缝 */
-    store.updateFamiliarityValue(20);
-    expect(useGameStore.getState().character.eventsTriggered).toContain('event-20-first-crack');
+    // 送 200 → 20% → 事件A
+    store.sendGift(200);
+    expect(useGameStore.getState().character.eventsTriggered).toContain('event-a-first-resonance');
 
-    /* 增加到 50% → 他从不说的名字 */
-    useGameStore.getState().updateFamiliarityValue(30);
-    expect(useGameStore.getState().character.eventsTriggered).toContain('event-50-unnamed');
+    // 送 300 → 50% → 事件B
+    useGameStore.getState().sendGift(300);
+    expect(useGameStore.getState().character.eventsTriggered).toContain('event-b-rift');
 
-    /* 增加到 80% → 航程启动 */
-    useGameStore.getState().updateFamiliarityValue(30);
-    expect(useGameStore.getState().character.eventsTriggered).toContain('event-80-voyage-start');
+    // 送 300 → 80% → 事件C
+    useGameStore.getState().sendGift(300);
+    expect(useGameStore.getState().character.eventsTriggered).toContain('event-c-irreversible');
 
-    /* 增加到 100% → 两扇门 */
-    useGameStore.getState().updateFamiliarityValue(20);
-    expect(useGameStore.getState().character.eventsTriggered).toContain('event-100-two-doors');
+    // 送 200 → 100% → 事件D
+    useGameStore.getState().sendGift(200);
+    expect(useGameStore.getState().character.eventsTriggered).toContain('event-d-interval');
 
-    /* 总共 4 个事件 */
+    // 总共 4 个事件
     expect(useGameStore.getState().character.eventsTriggered).toHaveLength(4);
     expect(useGameStore.getState().character.currentPhase).toBe('bonded');
   });

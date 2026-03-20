@@ -79,7 +79,7 @@ export default function FeatureShowcase() {
                 <h3 className={`font-display text-h3 ${colors.text} mb-3`}>
                   {feature.title}
                 </h3>
-                <p className="font-cn text-body text-txt-secondary leading-relaxed">
+                <p className="font-body text-body text-txt-secondary leading-relaxed">
                   {feature.description}
                 </p>
               </motion.div>

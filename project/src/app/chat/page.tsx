@@ -1,4 +1,4 @@
-/** 聊天主界面 — 包含顶栏、消息区、输入栏、送礼弹窗、事件弹窗、终局、企鹅、火种 */
+/** 聊天主界面 — 包含顶栏、消息区、输入栏、送礼弹窗、事件弹窗 */
 
 'use client';
 
@@ -8,7 +8,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { useChat } from '@/hooks/useChat';
 import { useSaveLoad } from '@/hooks/useSaveLoad';
-import { useSpark } from '@/hooks/useSpark';
 import TopBar from '@/components/chat/TopBar';
 import ChatContainer from '@/components/chat/ChatContainer';
 import InputBar from '@/components/chat/InputBar';
@@ -16,18 +15,13 @@ import FamiliarityBar from '@/components/chat/FamiliarityBar';
 import GiftModal from '@/components/chat/GiftModal';
 import EventModal from '@/components/chat/EventModal';
 import IntroFlow from '@/components/intro/IntroFlow';
-import EndingChoice from '@/components/ending/EndingChoice';
-import PenguinDisplay from '@/components/penguin/PenguinDisplay';
-import SparkDisplay from '@/components/spark/SparkDisplay';
 import ParticleCanvas from '@/components/landing/ParticleCanvas';
-import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
 export default function ChatPage() {
   const router = useRouter();
-  const { user, character, ending, chatHistory } = useGameStore();
-  const { isTyping, error, pendingEvent, endingJustTriggered, clearEvent, clearEndingTriggered, sendMessage } = useChat();
+  const { user, character } = useGameStore();
+  const { isTyping, error, pendingEvent, clearEvent, sendMessage } = useChat();
   const { saveToFile, loadFromFile } = useSaveLoad();
-  const { checkAndGenerate } = useSpark();
 
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [showIntro, setShowIntro] = useState(!user.introCompleted);
@@ -40,13 +34,6 @@ export default function ChatPage() {
       return () => clearTimeout(t);
     }
   }, [toast]);
-
-  // 结局二后：每轮对话后检查是否生成火种
-  useEffect(() => {
-    if (ending.postEndingActive && !isTyping && chatHistory.length > 0) {
-      checkAndGenerate();
-    }
-  }, [chatHistory.length, ending.postEndingActive, isTyping, checkAndGenerate]);
 
   const handleIntroComplete = useCallback(() => {
     setShowIntro(false);
@@ -71,19 +58,14 @@ export default function ChatPage() {
     });
   }, [loadFromFile]);
 
-  // 根据阶段确定粒子颜色（结局二后使用星空紫色调）
+  // 根据阶段确定粒子颜色
   const particleColors: Record<string, string[]> = {
     intro: ['#00E5A0', '#33EDBA', '#7FF5D5'],
     acquaintance: ['#00E5A0', '#FFB347', '#FFC870'],
     familiar: ['#00E5A0', '#FFB347', '#C73E5C'],
     close: ['#C73E5C', '#E84855', '#FFB347'],
-    bonded: ['#E8EDF4', '#8B95A6', '#576173'],
+    bonded: ['#9CA3AF', '#6B7280', '#4B5563'],
   };
-
-  const astralColors = ['#6C5CE7', '#A39AF5', '#8B7FE8'];
-  const currentParticleColors = ending.postEndingActive
-    ? astralColors
-    : (particleColors[character.currentPhase] || particleColors.intro);
 
   return (
     <div
@@ -92,7 +74,7 @@ export default function ChatPage() {
     >
       {/* 背景粒子 */}
       <ParticleCanvas
-        colors={currentParticleColors}
+        colors={particleColors[character.currentPhase] || particleColors.intro}
         count={30}
         showLines={false}
       />
@@ -116,14 +98,9 @@ export default function ChatPage() {
         )}
       </AnimatePresence>
 
-      {/* 终极选择界面（100% 触发，全屏覆盖，不可逆） */}
-      <ErrorBoundary>
-        <EndingChoice />
-      </ErrorBoundary>
-
       {/* 主界面 */}
       {!showIntro && (
-        <ErrorBoundary>
+        <>
           <TopBar
             onUpload={handleLoad}
             onSave={handleSave}
@@ -131,11 +108,6 @@ export default function ChatPage() {
           />
 
           <ChatContainer isTyping={isTyping} />
-
-          {/* 结局二后的火种展示区 */}
-          {ending.postEndingActive && (
-            <SparkDisplay />
-          )}
 
           {/* 错误提示 */}
           <AnimatePresence>
@@ -155,12 +127,9 @@ export default function ChatPage() {
 
           <InputBar
             onSend={sendMessage}
-            onPenguinClick={() => setShowGiftModal(true)}
+            onGiftClick={() => setShowGiftModal(true)}
             disabled={isTyping}
           />
-
-          {/* 企鹅形态展示（左下角固定） */}
-          <PenguinDisplay />
 
           {/* 送礼弹窗 */}
           <GiftModal
@@ -176,7 +145,7 @@ export default function ChatPage() {
           <AnimatePresence>
             {toast && (
               <motion.div
-                className="fixed bottom-24 left-1/2 -translate-x-1/2 z-toast glass-elevated rounded-capsule px-6 py-3 text-caption text-jade-400 pointer-events-none"
+                className="fixed bottom-24 left-1/2 -translate-x-1/2 z-toast glass-panel-elevated rounded-capsule px-6 py-3 text-caption text-jade-400 pointer-events-none"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
@@ -185,7 +154,7 @@ export default function ChatPage() {
               </motion.div>
             )}
           </AnimatePresence>
-        </ErrorBoundary>
+        </>
       )}
     </div>
   );

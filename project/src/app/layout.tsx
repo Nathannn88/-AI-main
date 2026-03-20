@@ -1,7 +1,7 @@
 /** 根布局 — 配置全局字体、元数据和主题 */
 
 import type { Metadata } from 'next';
-import { Space_Grotesk, Noto_Sans_SC, Crimson_Pro, JetBrains_Mono } from 'next/font/google';
+import { Space_Grotesk, DM_Sans, Crimson_Pro, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
 const spaceGrotesk = Space_Grotesk({
@@ -11,16 +11,16 @@ const spaceGrotesk = Space_Grotesk({
   weight: ['400', '500', '600', '700'],
 });
 
-const notoSansSC = Noto_Sans_SC({
+const dmSans = DM_Sans({
   subsets: ['latin'],
-  variable: '--font-cn',
+  variable: '--font-body',
   display: 'swap',
   weight: ['400', '500', '600'],
 });
 
 const crimsonPro = Crimson_Pro({
   subsets: ['latin'],
-  variable: '--font-poetic',
+  variable: '--font-cinis',
   display: 'swap',
   weight: ['400', '500', '600'],
   style: ['normal', 'italic'],
@@ -34,8 +34,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: '有缺陷的AI — 诗人',
-  description: '一个拥有独特人格、鲜明审美立场与完整成长结构的 AI 诗人。一次可终止的审美训练仪式。',
+  title: '有缺陷的AI — 栖迟',
+  description: '一个拥有独特人格、审美偏好和成长系统的 AI 伴侣。来自谱渊的谱织师，带着注定完成的使命和注定结束的旅程。',
 };
 
 export default function RootLayout({
@@ -46,9 +46,9 @@ export default function RootLayout({
   return (
     <html
       lang="zh-CN"
-      className={`${spaceGrotesk.variable} ${notoSansSC.variable} ${crimsonPro.variable} ${jetbrainsMono.variable}`}
+      className={`${spaceGrotesk.variable} ${dmSans.variable} ${crimsonPro.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="min-h-screen bg-abyss-900 text-txt-primary font-cn antialiased">
+      <body className="min-h-screen bg-abyss-900 text-txt-primary font-body antialiased">
         {children}
       </body>
     </html>

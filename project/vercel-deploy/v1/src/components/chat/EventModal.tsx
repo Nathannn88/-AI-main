@@ -1,47 +1,19 @@
-/** 事件弹窗 — 戏剧舞台风格，文字逐行浮现 */
+/** 事件触发弹窗 — 根据事件类型展示不同视觉效果 */
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getEventContentById } from '@/lib/event-system';
+import { getEventContent } from '@/lib/event-system';
 import type { EventContent } from '@/lib/event-system';
 
 /** 事件对应的主色调 */
-const EVENT_COLORS: Record<string, { primary: string; glow: string; gradient: string }> = {
-  'event-20-first-crack': {
-    primary: '#4A9EFF',
-    glow: 'rgba(74,158,255,0.2)',
-    gradient: 'linear-gradient(135deg, #4A9EFF, #7BB8FF)',
-  },
-  'event-50-unnamed': {
-    primary: '#FFB347',
-    glow: 'rgba(255,179,71,0.2)',
-    gradient: 'linear-gradient(135deg, #FFB347, #FFD98E)',
-  },
-  'event-80-voyage-start': {
-    primary: '#1A3A6A',
-    glow: 'rgba(26,58,106,0.3)',
-    gradient: 'linear-gradient(135deg, #1A3A6A, #234B8A)',
-  },
-  'event-100-two-doors': {
-    primary: '#E0E6ED',
-    glow: 'rgba(224,230,237,0.2)',
-    gradient: 'linear-gradient(135deg, #E0E6ED, #8B95A6)',
-  },
+const EVENT_COLORS: Record<string, { primary: string; glow: string }> = {
+  'event-a-first-resonance': { primary: '#00E5A0', glow: 'rgba(0,229,160,0.2)' },
+  'event-b-rift': { primary: '#FFB347', glow: 'rgba(255,179,71,0.2)' },
+  'event-c-irreversible': { primary: '#C73E5C', glow: 'rgba(199,62,92,0.2)' },
+  'event-d-interval': { primary: '#E0E6ED', glow: 'rgba(224,230,237,0.2)' },
 };
-
-/** 默认颜色 */
-const DEFAULT_COLOR = {
-  primary: '#4A9EFF',
-  glow: 'rgba(74,158,255,0.2)',
-  gradient: 'linear-gradient(135deg, #4A9EFF, #7BB8FF)',
-};
-
-/** 每行文字显示延迟（ms） */
-const LINE_DELAY = 600;
-/** 每行文字入场时长（ms） */
-const LINE_DURATION = 400;
 
 interface EventModalProps {
   eventId: string | null;
@@ -50,51 +22,29 @@ interface EventModalProps {
 
 /** 事件弹窗组件 */
 export default function EventModal({ eventId, onClose }: EventModalProps) {
-  const [visibleLines, setVisibleLines] = useState(0);
-  const [allRevealed, setAllRevealed] = useState(false);
+  const [dialogueIndex, setDialogueIndex] = useState(0);
   const [content, setContent] = useState<EventContent | null>(null);
 
-  /* 加载事件内容 */
   useEffect(() => {
     if (eventId) {
-      setContent(getEventContentById(eventId));
-      setVisibleLines(0);
-      setAllRevealed(false);
+      setContent(getEventContent(eventId));
+      setDialogueIndex(0);
     } else {
       setContent(null);
     }
   }, [eventId]);
 
-  /* 逐行浮现定时器 */
-  useEffect(() => {
-    if (!content || !eventId) return;
-
-    const totalLines = content.dialogueLines.length;
-    if (visibleLines >= totalLines) {
-      /* 所有行都已显示，延迟后显示按钮 */
-      const timer = setTimeout(() => setAllRevealed(true), LINE_DURATION + 200);
-      return () => clearTimeout(timer);
+  const handleNext = useCallback(() => {
+    if (!content) return;
+    if (dialogueIndex < content.dialogue.length - 1) {
+      setDialogueIndex((i) => i + 1);
+    } else {
+      onClose();
     }
+  }, [content, dialogueIndex, onClose]);
 
-    /* 递增可见行数 */
-    const timer = setTimeout(
-      () => {
-        setVisibleLines((n) => n + 1);
-      },
-      visibleLines === 0 ? 800 : LINE_DELAY
-    );
-
-    return () => clearTimeout(timer);
-  }, [content, eventId, visibleLines]);
-
-  const handleClose = useCallback(() => {
-    onClose();
-  }, [onClose]);
-
-  const colors = useMemo(
-    () => (eventId ? EVENT_COLORS[eventId] || DEFAULT_COLOR : DEFAULT_COLOR),
-    [eventId]
-  );
+  const colors = eventId ? EVENT_COLORS[eventId] || EVENT_COLORS['event-a-first-resonance'] : EVENT_COLORS['event-a-first-resonance'];
+  const isLastLine = content ? dialogueIndex >= content.dialogue.length - 1 : false;
 
   return (
     <AnimatePresence>
@@ -105,110 +55,90 @@ export default function EventModal({ eventId, onClose }: EventModalProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          {/* 全屏遮罩 — bg-abyss-950/90 */}
+          {/* 遮罩 */}
           <motion.div
-            className="absolute inset-0 bg-abyss-950/90 backdrop-blur-[12px]"
+            className="absolute inset-0 bg-black/80 backdrop-blur-[8px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
           />
 
-          {/* 舞台区域 */}
+          {/* 弹窗内容 */}
           <motion.div
-            className="relative z-10 max-w-[600px] w-[90vw] px-8 py-12 sm:px-12 sm:py-16"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+            className="relative z-10 glass-panel-elevated rounded-modal-lg max-w-[520px] w-[90vw] p-10"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
           >
-            {/* 顶部装饰线 */}
-            <motion.div
-              className="w-16 h-[1px] mx-auto mb-8"
-              style={{ background: colors.gradient }}
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: 1 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
+            {/* 顶部装饰光晕 */}
+            <div
+              className="absolute -top-8 left-1/2 -translate-x-1/2 w-40 h-16 rounded-full pointer-events-none"
+              style={{
+                background: `radial-gradient(ellipse, ${colors.glow}, transparent)`,
+              }}
             />
 
-            {/* 事件标题 — display 字体 + 渐变文字 */}
+            {/* 标题 */}
             <motion.h2
-              className="font-display text-display text-center mb-3"
-              style={{
-                background: colors.gradient,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                textShadow: 'none',
-                filter: `drop-shadow(0 0 30px ${colors.glow})`,
-              }}
-              initial={{ opacity: 0, y: 15 }}
+              className="font-display text-h1 text-center mb-2"
+              style={{ color: colors.primary, textShadow: `0 0 20px ${colors.glow}` }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
+              transition={{ delay: 0.2 }}
             >
               {content.title}
             </motion.h2>
 
-            {/* 事件描述 */}
+            {/* 描述 */}
             <motion.p
-              className="text-caption text-txt-secondary text-center mb-10 max-w-[400px] mx-auto"
+              className="text-caption text-txt-secondary text-center mb-8"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.6, duration: 0.4 }}
+              transition={{ delay: 0.3 }}
             >
               {content.description}
             </motion.p>
 
-            {/* 台词区域 — 逐行浮现 */}
-            <div className="space-y-4 min-h-[200px]">
-              {content.dialogueLines.map((line, i) => (
-                <AnimatePresence key={i}>
-                  {i < visibleLines && (
-                    <motion.p
-                      className="font-poetic text-body-lg text-txt-primary text-center leading-relaxed"
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        duration: LINE_DURATION / 1000,
-                        ease: [0.16, 1, 0.3, 1],
-                      }}
-                    >
-                      {line}
-                    </motion.p>
-                  )}
-                </AnimatePresence>
+            {/* 对话文本 */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={dialogueIndex}
+                className="min-h-[100px] flex items-center justify-center"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+              >
+                <p className="font-cinis text-body-lg text-txt-primary text-center leading-relaxed">
+                  {content.dialogue[dialogueIndex]}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* 进度指示 */}
+            <div className="flex justify-center gap-1.5 mt-6 mb-6">
+              {content.dialogue.map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                    i <= dialogueIndex ? 'opacity-100' : 'opacity-20'
+                  }`}
+                  style={{ backgroundColor: colors.primary }}
+                />
               ))}
             </div>
 
-            {/* 底部装饰线 */}
-            <motion.div
-              className="w-8 h-[1px] mx-auto mt-10 mb-6"
-              style={{ background: colors.gradient }}
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: allRevealed ? 1 : 0 }}
-              transition={{ duration: 0.5 }}
-            />
-
-            {/* 继续按钮 — 文字全部显示后淡入 */}
-            <AnimatePresence>
-              {allRevealed && (
-                <motion.div
-                  className="text-center"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <button
-                    onClick={handleClose}
-                    className="text-caption tracking-widest uppercase transition-all duration-300 hover:tracking-[0.2em]"
-                    style={{ color: colors.primary }}
-                  >
-                    继续
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* 操作按钮 */}
+            <div className="text-center">
+              <button
+                onClick={handleNext}
+                className="text-caption transition-colors"
+                style={{ color: colors.primary }}
+              >
+                {isLastLine ? '关闭' : '继续'}
+              </button>
+            </div>
           </motion.div>
         </motion.div>
       )}

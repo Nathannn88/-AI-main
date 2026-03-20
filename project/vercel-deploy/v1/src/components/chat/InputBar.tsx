@@ -1,26 +1,20 @@
-/** 底部输入栏 — 输入框 + 发送按钮 + 企鹅形态按钮 */
+/** 底部输入栏 — 输入框 + 发送按钮 + 送礼按钮 */
 
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { useGameStore } from '@/store/gameStore';
 
 interface InputBarProps {
   onSend: (message: string) => void;
-  onPenguinClick: () => void;
+  onGiftClick: () => void;
   disabled?: boolean;
 }
 
 /** 聊天输入栏 */
-export default function InputBar({ onSend, onPenguinClick, disabled = false }: InputBarProps) {
+export default function InputBar({ onSend, onGiftClick, disabled = false }: InputBarProps) {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const ending = useGameStore((s) => s.ending);
-
-  /* 结局二后 placeholder 变化 */
-  const placeholder = ending.postEndingActive ? '写点什么...' : '说点什么...';
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
@@ -29,22 +23,21 @@ export default function InputBar({ onSend, onPenguinClick, disabled = false }: I
     setInput('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
+      // 发送后自动聚焦输入框
       textareaRef.current.focus();
     }
   }, [input, disabled, onSend]);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend]
-  );
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }, [handleSend]);
 
   const handleInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
+    // 自适应高度
     const textarea = e.target;
     textarea.style.height = 'auto';
     textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
@@ -55,35 +48,20 @@ export default function InputBar({ onSend, onPenguinClick, disabled = false }: I
   return (
     <div className="glass-panel border-t border-white/[0.06] px-3 py-3 z-input shrink-0">
       <div className="max-w-3xl mx-auto flex items-end gap-3">
-        {/* 企鹅形态按钮 */}
+        {/* 送礼按钮 */}
         <motion.button
-          onClick={onPenguinClick}
-          className="w-10 h-10 flex items-center justify-center rounded-[12px] text-jade-500 hover:text-jade-400 hover:bg-jade-500/[0.06] transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-jade-500 focus-visible:outline-offset-2"
+          onClick={onGiftClick}
+          className="w-10 h-10 flex items-center justify-center rounded-[12px] text-amber-500 hover:text-amber-400 hover:bg-amber-500/[0.06] transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-amber-500 focus-visible:outline-offset-2"
           whileTap={{ scale: 0.9 }}
-          aria-label="企鹅形态"
-          title="企鹅形态"
+          aria-label="送礼"
+          title="送礼"
         >
-          {/* 企鹅简化图标 */}
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            {/* 企鹅身体 */}
-            <ellipse cx="12" cy="14" rx="6" ry="8" />
-            {/* 头部 */}
-            <circle cx="12" cy="7" r="4" />
-            {/* 双眼 */}
-            <circle cx="10.5" cy="6.5" r="0.8" fill="currentColor" />
-            <circle cx="13.5" cy="6.5" r="0.8" fill="currentColor" />
-            {/* 翅膀 */}
-            <path d="M6 12 Q3 14 5 18" />
-            <path d="M18 12 Q21 14 19 18" />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 12 20 22 4 22 4 12" />
+            <rect x="2" y="7" width="20" height="5" />
+            <line x1="12" y1="22" x2="12" y2="7" />
+            <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+            <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
           </svg>
         </motion.button>
 
@@ -96,7 +74,7 @@ export default function InputBar({ onSend, onPenguinClick, disabled = false }: I
           rows={1}
           disabled={disabled}
           className="input-chat flex-1 min-h-[40px] max-h-[120px] resize-none"
-          placeholder={placeholder}
+          placeholder="说点什么..."
         />
 
         {/* 发送按钮 */}
@@ -111,16 +89,7 @@ export default function InputBar({ onSend, onPenguinClick, disabled = false }: I
           whileTap={hasInput && !disabled ? { scale: 0.9 } : undefined}
           aria-label="发送"
         >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="22" y1="2" x2="11" y2="13" />
             <polygon points="22 2 15 22 11 13 2 9 22 2" />
           </svg>

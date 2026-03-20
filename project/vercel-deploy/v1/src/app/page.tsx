@@ -1,4 +1,4 @@
-/** Landing Page — 5 画面竖直 scroll-snap 沉浸式入口 */
+/** Landing Page — 全屏沉浸式引入，滚动展示角色与功能 */
 
 'use client';
 
@@ -6,10 +6,9 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useCallback } from 'react';
 import HeroSection from '@/components/landing/HeroSection';
-import MissionSection from '@/components/landing/MissionSection';
-import PenguinShowcase from '@/components/landing/PenguinShowcase';
-import GrowthTimeline from '@/components/landing/GrowthTimeline';
-import EntrySection from '@/components/landing/EntrySection';
+import StoryIntro from '@/components/landing/StoryIntro';
+import FeatureShowcase from '@/components/landing/FeatureShowcase';
+import EnterButton from '@/components/landing/EnterButton';
 import ParticleCanvas from '@/components/landing/ParticleCanvas';
 
 export default function Home() {
@@ -24,14 +23,9 @@ export default function Home() {
   }, [router]);
 
   return (
-    <main
-      className="relative h-screen bg-abyss-950 overflow-y-auto overflow-x-hidden snap-y snap-mandatory"
-      style={{ scrollSnapType: 'y mandatory' }}
-    >
-      {/* 全局背景粒子 */}
-      <div className="fixed inset-0 z-particles pointer-events-none">
-        <ParticleCanvas count={30} showLines={false} />
-      </div>
+    <main className="relative min-h-screen bg-abyss-950 overflow-x-hidden">
+      {/* 背景粒子 */}
+      <ParticleCanvas count={35} />
 
       {/* 过渡遮罩 */}
       <AnimatePresence>
@@ -45,30 +39,11 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* 画面 1：Hero */}
-      <div className="snap-start snap-always">
-        <HeroSection />
-      </div>
-
-      {/* 画面 2：诗人使命 */}
-      <div className="snap-start snap-always">
-        <MissionSection />
-      </div>
-
-      {/* 画面 3：企鹅能力 */}
-      <div className="snap-start snap-always">
-        <PenguinShowcase />
-      </div>
-
-      {/* 画面 4：成长系统 */}
-      <div className="snap-start snap-always">
-        <GrowthTimeline />
-      </div>
-
-      {/* 画面 5：入口 */}
-      <div className="snap-start snap-always">
-        <EntrySection onEnter={handleEnter} />
-      </div>
+      {/* 主内容 */}
+      <HeroSection onEnter={handleEnter} />
+      <StoryIntro />
+      <FeatureShowcase />
+      <EnterButton onEnter={handleEnter} />
     </main>
   );
 }

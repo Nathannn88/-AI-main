@@ -2,10 +2,6 @@
 
 import type { ChatMessage } from './chat';
 import type { FamiliarityPhase } from './character';
-import type { FuelState } from './fuel';
-import type { PenguinState } from './penguin';
-import type { EndingState } from './ending';
-import type { SparkState } from './spark';
 
 /** 用户信息 */
 export interface UserState {
@@ -44,14 +40,6 @@ export interface GameState {
   economy: EconomyState;
   chatHistory: ChatMessage[];
   meta: MetaState;
-  /** 航程燃料状态（结局二后激活） */
-  fuel: FuelState;
-  /** 企鹅变形状态 */
-  penguin: PenguinState;
-  /** 终局状态 */
-  ending: EndingState;
-  /** 火种状态（结局二后激活） */
-  spark: SparkState;
 }
 
 /** 当前版本号 */
@@ -83,32 +71,6 @@ export function createDefaultGameState(): GameState {
       version: GAME_STATE_VERSION,
       createdAt: now,
       lastSavedAt: now,
-    },
-    fuel: {
-      currentFuel: 0,
-      fuelPhase: 'growing',
-      lastUpdateTime: now,
-      stallLevel: 'none',
-      turnsInStall: 0,
-      consecutiveGoodSparks: 0,
-    },
-    penguin: {
-      currentForm: 'default',
-      transformHistory: [],
-      availableForms: ['default'],
-    },
-    ending: {
-      endingReached: false,
-      choiceMade: 'none',
-      postEndingActive: false,
-    },
-    spark: {
-      pendingSpark: null,
-      sparkHistory: [],
-      lastSparkTime: now,
-      totalCreativeTransforms: 0,
-      sparksSinceLastEcho: 0,
-      turnsSinceLastSpark: 0,
     },
   };
 }
