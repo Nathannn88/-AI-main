@@ -2,6 +2,10 @@
 
 import type { ChatMessage } from './chat';
 import type { FamiliarityPhase } from './character';
+import type { EndingState } from './ending';
+import type { PenguinState } from './penguin';
+import type { FuelState } from './fuel';
+import type { SparkState } from './spark';
 
 /** 用户信息 */
 export interface UserState {
@@ -38,6 +42,10 @@ export interface GameState {
   user: UserState;
   character: CharacterGameState;
   economy: EconomyState;
+  ending: EndingState;
+  penguin: PenguinState;
+  fuel: FuelState;
+  spark: SparkState;
   chatHistory: ChatMessage[];
   meta: MetaState;
 }
@@ -65,6 +73,32 @@ export function createDefaultGameState(): GameState {
       totalGoldEarned: 0,
       totalGoldSpent: 0,
       rechargeHistory: [],
+    },
+    ending: {
+      endingReached: false,
+      choiceMade: 'none',
+      postEndingActive: false,
+    },
+    penguin: {
+      currentForm: 'default',
+      transformHistory: [],
+      availableForms: ['default'],
+    },
+    fuel: {
+      currentFuel: 0,
+      fuelPhase: 'growing',
+      lastUpdateTime: now,
+      stallLevel: 'none',
+      turnsInStall: 0,
+      consecutiveGoodSparks: 0,
+    },
+    spark: {
+      pendingSpark: null,
+      sparkHistory: [],
+      lastSparkTime: now,
+      totalCreativeTransforms: 0,
+      sparksSinceLastEcho: 0,
+      turnsSinceLastSpark: 0,
     },
     chatHistory: [],
     meta: {
