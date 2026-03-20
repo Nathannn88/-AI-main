@@ -100,6 +100,7 @@ describe('事件触发集成', () => {
   it('事件触发后 system prompt 包含事件指令', () => {
     const store = useGameStore.getState();
     store.setUserName('测试');
+    store.triggerEvent('event-a-first-resonance');
     store.triggerEvent('event-b-rift');
     store.updateFamiliarityValue(55);
 
@@ -108,6 +109,10 @@ describe('事件触发集成', () => {
       user: state.user,
       character: state.character,
       economy: state.economy,
+      ending: state.ending,
+      penguin: state.penguin,
+      fuel: state.fuel,
+      spark: state.spark,
       chatHistory: state.chatHistory,
       meta: state.meta,
     };

@@ -30,19 +30,19 @@ describe('完整生命周期', () => {
     state.updateFamiliarityValue(20);
     state = useGameStore.getState();
     expect(state.character.currentPhase).toBe('acquaintance');
-    expect(state.character.eventsTriggered).toContain('event-20-first-crack');
+    expect(state.character.eventsTriggered).toContain('event-a-first-resonance');
 
     // === 阶段 2：推进到 50%（事件 B）===
     state.updateFamiliarityValue(30);
     state = useGameStore.getState();
     expect(state.character.currentPhase).toBe('familiar');
-    expect(state.character.eventsTriggered).toContain('event-50-unnamed');
+    expect(state.character.eventsTriggered).toContain('event-b-rift');
 
     // === 阶段 3：推进到 80%（事件 C）===
     state.updateFamiliarityValue(30);
     state = useGameStore.getState();
     expect(state.character.currentPhase).toBe('close');
-    expect(state.character.eventsTriggered).toContain('event-80-voyage-start');
+    expect(state.character.eventsTriggered).toContain('event-c-irreversible');
 
     // === 阶段 4：推进到 100%（终局）===
     state.updateFamiliarityValue(20);
@@ -148,19 +148,19 @@ describe('完整生命周期', () => {
     // 逐阶段推进，每个阈值只触发一个事件
     store.updateFamiliarityValue(20);
     let state = useGameStore.getState();
-    expect(state.character.eventsTriggered).toContain('event-20-first-crack');
+    expect(state.character.eventsTriggered).toContain('event-a-first-resonance');
 
     state.updateFamiliarityValue(30);
     state = useGameStore.getState();
-    expect(state.character.eventsTriggered).toContain('event-50-unnamed');
+    expect(state.character.eventsTriggered).toContain('event-b-rift');
 
     state.updateFamiliarityValue(30);
     state = useGameStore.getState();
-    expect(state.character.eventsTriggered).toContain('event-80-voyage-start');
+    expect(state.character.eventsTriggered).toContain('event-c-irreversible');
 
     state.updateFamiliarityValue(20);
     state = useGameStore.getState();
-    expect(state.character.eventsTriggered).toContain('event-100-two-doors');
+    expect(state.character.eventsTriggered).toContain('event-d-interval');
 
     // 终局可触发且不与事件冲突
     expect(checkEndingTrigger(state.character.familiarity)).toBe(true);
