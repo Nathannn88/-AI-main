@@ -9,13 +9,6 @@ import { countChineseWords, calculateFamiliarityFromWords, calculateFamiliarityF
 import { recharge as goldRecharge, sendGift as goldSendGift } from '@/lib/gold-system';
 import { exportGameState, importGameState } from '@/lib/save-system';
 import { checkEventTrigger } from '@/lib/event-system';
-import { processEndingChoice } from '@/lib/ending-system';
-import { transformPenguin, getPostEndingPenguinState } from '@/lib/penguin-system';
-import type { PenguinForm } from '@/types/penguin';
-import { FUEL_CONSTANTS } from '@/types/fuel';
-import type { Spark } from '@/types/spark';
-import type { SparkRating } from '@/types/fuel';
-import { getFuelChangeForRating, updateFuel } from '@/lib/fuel-system';
 
 /** Store 中的操作方法 */
 interface GameActions {
@@ -43,22 +36,6 @@ interface GameActions {
   completeIntro: () => void;
   /** 保存介绍回答 */
   saveIntroAnswer: (question: string, answer: string) => void;
-  /** 触发终局（熟悉度达 100%） */
-  triggerEnding: () => void;
-  /** 做出终极选择 */
-  makeEndingChoice: (choice: 'send-away' | 'become-poet') => void;
-  /** 企鹅变形 */
-  transformPenguinForm: (form: PenguinForm) => { success: boolean; goldCost: number };
-  /** 进入灯塔模式 */
-  enterLighthouseMode: () => void;
-  /** 设置待回应火种 */
-  setPendingSpark: (spark: Spark) => void;
-  /** 记录火种回应 */
-  recordSparkResponse: (sparkId: string, rating: SparkRating) => void;
-  /** 累加自上次火种以来的轮数 */
-  incrementTurnsSinceLastSpark: () => void;
-  /** 更新燃料值 */
-  updateFuelValue: (delta: number) => void;
 }
 
 /** 完整的 Store 类型 */
@@ -205,22 +182,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newFamiliarity = updateFamiliarity(state.character.familiarity, delta);
     const newPhase = getFamiliarityPhase(newFamiliarity);
 
-    const eventTrigger = checkEventTrigger(
-      state.character.familiarity,
-      newFamiliarity,
-      state.character.eventsTriggered
-    );
-
-    const newEventsTriggered = eventTrigger
-      ? [...state.character.eventsTriggered, eventTrigger.eventId]
-      : state.character.eventsTriggered;
-
     set({
       character: {
         ...state.character,
         familiarity: newFamiliarity,
         currentPhase: newPhase,
-        eventsTriggered: newEventsTriggered,
       },
     });
   },
@@ -243,10 +209,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       user: state.user,
       character: state.character,
       economy: state.economy,
-      ending: state.ending,
-      penguin: state.penguin,
-      fuel: state.fuel,
-      spark: state.spark,
       chatHistory: state.chatHistory,
       meta: state.meta,
     };
@@ -263,10 +225,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       user: result.state.user,
       character: result.state.character,
       economy: result.state.economy,
-      ending: result.state.ending,
-      penguin: result.state.penguin,
-      fuel: result.state.fuel,
-      spark: result.state.spark,
       chatHistory: result.state.chatHistory,
       meta: result.state.meta,
     });
@@ -306,158 +264,5 @@ export const useGameStore = create<GameStore>((set, get) => ({
         },
       },
     }));
-  },
-
-  triggerEnding: () => {
-    const state = get();
-    if (state.character.familiarity < 100) return;
-    if (state.ending.endingReached) return;
-
-    set({
-      ending: {
-        ...state.ending,
-        endingReached: true,
-      },
-    });
-  },
-
-  makeEndingChoice: (choice: 'send-away' | 'become-poet') => {
-    const state = get();
-    if (!state.ending.endingReached) return;
-    if (state.ending.choiceMade !== 'none') return;
-
-    const stateUpdates = processEndingChoice(choice, state);
-    const penguinState = getPostEndingPenguinState(state.penguin, choice);
-
-    const fuelUpdate = choice === 'become-poet'
-      ? {
-          currentFuel: FUEL_CONSTANTS.INITIAL,
-          fuelPhase: 'voyage' as const,
-          lastUpdateTime: new Date().toISOString(),
-          stallLevel: 'none' as const,
-          turnsInStall: 0,
-          consecutiveGoodSparks: 0,
-        }
-      : state.fuel;
-
-    set({
-      ...stateUpdates,
-      ending: {
-        endingReached: true,
-        choiceMade: choice,
-        postEndingActive: choice === 'become-poet',
-      },
-      penguin: penguinState,
-      fuel: fuelUpdate,
-    });
-  },
-
-  transformPenguinForm: (form: PenguinForm) => {
-    const state = get();
-    const result = transformPenguin(state.penguin, form, state.economy.goldBalance);
-
-    if (result.goldCost === 0 && result.newState.currentForm === state.penguin.currentForm) {
-      return { success: false, goldCost: 0 };
-    }
-
-    set({
-      penguin: result.newState,
-      economy: {
-        ...state.economy,
-        goldBalance: state.economy.goldBalance - result.goldCost,
-        totalGoldSpent: state.economy.totalGoldSpent + result.goldCost,
-      },
-    });
-
-    return { success: true, goldCost: result.goldCost };
-  },
-
-  setPendingSpark: (spark: Spark) => {
-    set((state) => ({
-      spark: {
-        ...state.spark,
-        pendingSpark: spark,
-        turnsSinceLastSpark: 0,
-        lastSparkTime: new Date().toISOString(),
-      },
-    }));
-  },
-
-  recordSparkResponse: (sparkId: string, rating: SparkRating) => {
-    const state = get();
-    const pending = state.spark.pendingSpark;
-    if (!pending || pending.id !== sparkId) return;
-
-    const fuelChange = getFuelChangeForRating(rating);
-    const newFuel = updateFuel(state.fuel.currentFuel, fuelChange);
-    const isGood = rating >= 2;
-    const isCreative = rating >= 3;
-
-    set({
-      spark: {
-        ...state.spark,
-        pendingSpark: null,
-        sparkHistory: [
-          ...state.spark.sparkHistory,
-          {
-            spark: pending,
-            evaluation: {
-              sparkId,
-              rating,
-              userResponse: '',
-              evaluatedAt: new Date().toISOString(),
-            },
-            ignored: false,
-          },
-        ],
-        totalCreativeTransforms: state.spark.totalCreativeTransforms + (isCreative ? 1 : 0),
-      },
-      fuel: {
-        ...state.fuel,
-        currentFuel: newFuel,
-        consecutiveGoodSparks: isGood ? state.fuel.consecutiveGoodSparks + 1 : 0,
-      },
-    });
-  },
-
-  incrementTurnsSinceLastSpark: () => {
-    set((state) => ({
-      spark: {
-        ...state.spark,
-        turnsSinceLastSpark: state.spark.turnsSinceLastSpark + 1,
-      },
-    }));
-  },
-
-  updateFuelValue: (delta: number) => {
-    const state = get();
-    const newFuel = updateFuel(state.fuel.currentFuel, delta);
-    set({
-      fuel: {
-        ...state.fuel,
-        currentFuel: newFuel,
-      },
-    });
-  },
-
-  enterLighthouseMode: () => {
-    const state = get();
-    if (state.ending.choiceMade !== 'become-poet') return;
-
-    set({
-      penguin: {
-        ...state.penguin,
-        currentForm: 'lighthouse',
-        availableForms: [...state.penguin.availableForms, 'lighthouse'],
-        transformHistory: [
-          ...state.penguin.transformHistory,
-          `lighthouse:${new Date().toISOString()}`,
-        ],
-      },
-      fuel: {
-        ...state.fuel,
-        fuelPhase: 'lighthouse',
-      },
-    });
   },
 }));

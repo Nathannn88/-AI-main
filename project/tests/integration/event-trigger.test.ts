@@ -109,10 +109,6 @@ describe('事件触发集成', () => {
       user: state.user,
       character: state.character,
       economy: state.economy,
-      ending: state.ending,
-      penguin: state.penguin,
-      fuel: state.fuel,
-      spark: state.spark,
       chatHistory: state.chatHistory,
       meta: state.meta,
     };
